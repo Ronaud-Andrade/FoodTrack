@@ -131,3 +131,6 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+#Model do Autenticador
+AUTH_USER_MODEL = "foodtrack.Usuario"
