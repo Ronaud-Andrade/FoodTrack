@@ -1,3 +1,28 @@
-.venv
-.env
+# Ambiente
+.venv/
 venv/
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Banco local do Django
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+
+# Arquivos gerados
+media/
+staticfiles/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Sistema
+.DS_Store
+Thumbs.db
