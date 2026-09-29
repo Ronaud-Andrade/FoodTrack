@@ -42,6 +42,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'drf_spectacular',
     'foodtrack',
 ]
 
@@ -108,9 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
@@ -134,3 +137,38 @@ MAILERS = {
 
 #Model do Autenticador
 AUTH_USER_MODEL = "foodtrack.Usuario"
+
+# A aplicação responde JSON. O token identifica o usuário em cada requisição.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# OpenAPI importável no Insomnia e no Postman.
+# O header de autenticação vai no formato: Token <chave>
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'FoodTrack',
+    'DESCRIPTION': (
+        'Envie Authorization: Token <chave>. '
+        'A chave sai de POST /api/token/. '
+        'Usuário comum só acessa o próprio restaurante. '
+        'Superusuário administra todas as empresas.'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'PREPROCESSING_HOOKS': [
+        'foodtrack.schema.somente_api',
+    ],
+}
