@@ -6,6 +6,7 @@ FoodTrack é um projeto Django para gestão e acompanhamento de alimentos/itens 
 
 - Python
 - Django
+- Django REST framework
 - django-environ
 
 ## Estrutura do projeto
@@ -21,11 +22,14 @@ FoodTrack/
 ├── foodtrack/
 │   ├── __init__.py
 │   ├── admin.py
+│   ├── api.py
+│   ├── urls.py
 │   ├── apps.py
+│   ├── escopo.py
 │   ├── migrations/
 │   ├── models.py
-│   ├── tests.py
-│   └── views.py
+│   ├── serializers.py
+│   └── tests.py
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -91,11 +95,32 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-3. Acesse no navegador:
+3. A API fica em `http://127.0.0.1:8000/api/`.
 
-```text
-http://127.0.0.1:8000/
+Obtenha um token com o usuário e a senha:
+
+```http
+POST /api/token/
+Content-Type: application/json
+
+{"username": "seu-usuario", "password": "sua-senha"}
 ```
+
+Envie o token nas próximas requisições:
+
+```http
+Authorization: Token seu-token
+```
+
+Recursos:
+
+- `/api/restaurantes/`
+- `/api/usuarios/`
+- `/api/alimentos/`
+- `/api/estoques/`
+- `/api/desperdicios/`
+
+Cada recurso aceita listar, criar, consultar, atualizar e excluir. Usuário comum só acessa os dados do próprio restaurante. Superusuário administra todos e é quem cadastra restaurantes.
 
 ## Admin do Django
 
@@ -113,8 +138,8 @@ http://127.0.0.1:8000/admin/
 
 ## Observações
 
-- O projeto ainda está em estrutura inicial.
-- A aplicação `foodtrack` foi registrada no `INSTALLED_APPS` e o projeto já está pronto para evoluir com modelos, views e rotas adicionais.
+- A aplicação responde JSON. As telas HTML do sistema foram removidas.
+- O admin do Django continua disponível para a gestão inicial.
 - Para ambiente de produção, é recomendado ajustar `DEBUG`, `ALLOWED_HOSTS`, `SECRET_KEY` e outras configurações do Django.
 
 ## Licença
