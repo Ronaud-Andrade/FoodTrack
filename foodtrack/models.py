@@ -2,24 +2,29 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-# Create your models here.
+# Este arquivo define os modelos do banco de dados do projeto.
+# Cada classe aqui representa uma tabela e os campos dela.
+# O Django usa essas classes para criar/migrar o schema do banco automaticamente.
+
 class Restaurante(models.Model):
+    # Representa cada estabelecimento/empresa que usa o sistema.
     nome = models.CharField(max_length=150)
     cnpj = models.CharField(max_length=18, unique=True)
 
-    #Definir o nome do objeto
+    # Define como o objeto será exibido no admin e em mensagens do sistema.
     def __str__(self):
         return self.nome
 
-class Usuario(AbstractUser): #Alterando o models do user nativo
-
+class Usuario(AbstractUser):
+    # Extende o usuário padrão do Django para incluir dados específicos do sistema.
+    # O Django já fornece username, password, is_staff, is_superuser, etc.
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     perfil = models.CharField(max_length=50)
-    #O user nativo do django possui password com hash
+    # O usuário nativo do Django guarda a senha com hash e já traz segurança básica.
 
-    # null=True e blank=True ficam só para o createsuperuser, que não pede restaurante.
-    # Usuário comum não pode gravar sem restaurante: validar_restaurante() e a constraint barram isso.
+    # null=True e blank=True são usados para permitir que o superusuário seja criado sem restaurante.
+    # Usuários comuns devem estar vinculados a um restaurante; isso é validado em clean() e save().
     restaurante = models.ForeignKey(
         Restaurante,
         on_delete=models.CASCADE,
@@ -29,12 +34,13 @@ class Usuario(AbstractUser): #Alterando o models do user nativo
     )
 
     class Meta:
-        # Mantém o rótulo padrão do AbstractUser.
+        # Mantém o rótulo padrão do AbstractUser para o painel administrativo.
         verbose_name = 'user'
         verbose_name_plural = 'users'
         constraints = [
-            # A mesma regra no banco, para valer também em caminhos que não chamam save()
-            # (por exemplo, QuerySet.update). Restaurante nulo só é aceito se is_superuser=True.
+            # Restrição no banco para garantir integridade mesmo quando os dados forem atualizados
+            # por caminhos que não passam pelo método save(), como QuerySet.update().
+            # Só é permitido restaurante nulo para superusuários.
             models.CheckConstraint(
                 condition=models.Q(is_superuser=True) | models.Q(restaurante__isnull=False),
                 name='usuario_restaurante_nulo_apenas_superuser',
@@ -43,29 +49,32 @@ class Usuario(AbstractUser): #Alterando o models do user nativo
         ]
 
     def clean(self):
-        # Formulários (admin e ModelForm) passam por aqui antes de gravar.
+        # Este método é chamado por formulários e pelo admin antes de salvar.
+        # Ele garante que regras de negócio sejam validadas antes do registro.
         super().clean()
         self.validar_restaurante()
 
     def validar_restaurante(self):
-        # Superusuário pode ficar sem restaurante.
-        # Qualquer outro usuário precisa da chave preenchida.
+        # Superusuário pode existir sem restaurante.
+        # Qualquer usuário normal precisa ter um restaurante associado.
         if not self.is_superuser and self.restaurante_id is None:
             raise ValidationError({
                 'restaurante': 'Usuários que não são superusuários precisam estar atrelados a um restaurante.',
             })
 
     def save(self, *args, **kwargs):
-        # createsuperuser e Usuario.objects.create() não chamam clean().
-        # A checagem aqui cobre esses caminhos antes de gravar.
+        # create_superuser e alguns fluxos de criação podem ignorar o método clean().
+        # Então a validação também acontece aqui para evitar inconsistência no banco.
         self.validar_restaurante()
         super().save(*args, **kwargs)
 
     def __str__(self):
+        # Exibe o nome de usuário no painel e em logs.
         return self.username
-    
+
 
 class Alimento(models.Model):
+    # Cada registro representa um produto/ingrediente cadastrado para um restaurante.
     nome = models.CharField(max_length=150)
     categoria = models.CharField(max_length=60)
     medida = models.CharField(max_length=50)
@@ -73,46 +82,55 @@ class Alimento(models.Model):
     restaurante = models.ForeignKey(
         Restaurante,
         on_delete=models.CASCADE,
-        #Cria um atalho reverso para acessar o objeto de alimentos por meio de restaurante
+        # Cria um acesso reverso para encontrar todos os alimentos de um restaurante.
+        # Exemplo: restaurante.alimentos.all()
         related_name='alimentos'
     )
 
     def __str__(self):
         return self.nome
 
+
 class Estoque(models.Model):
+    # Registra a quantidade atual de um alimento em um ponto de armazenamento.
     qntd_atual = models.IntegerField()
     entrada = models.DateField()
     saida = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=150)
+    validade = models.DateField(null=True, blank=True)
 
-    #Chave de Alimento
+    # Relacionamento com o alimento: um estoque pertence a um único alimento.
     alimento = models.ForeignKey(
         Alimento,
         on_delete=models.CASCADE,
-        #Cria um atalho reverso para acessar o objeto de estoque por meio de alimentos
-        related_name='estoques' 
+        # Permite acessar todos os registros de estoque de um alimento.
+        # Exemplo: alimento.estoques.all()
+        related_name='estoques'
     )
 
     def __str__(self):
-        #Nome do alimento - quantidade atual
+        # Exibe o nome do alimento seguido da quantidade disponível.
         return f'{self.alimento.nome} - {self.qntd_atual}'
 
+
 class Desperdicio(models.Model):
+    # Guarda os registros de alimentos perdidos ou descartados.
     descricao = models.CharField(max_length=300)
     quantidade = models.IntegerField()
     data = models.DateField()
 
+    # Cada desperdício está ligado ao estoque relacionado ao item.
     estoque = models.ForeignKey(
         Estoque,
         on_delete=models.CASCADE,
         related_name='desperdicio'
     )
 
+    # Também registra quem fez o registro, para auditoria e controle.
     usuario = models.ForeignKey(
         Usuario,
         on_delete=models.CASCADE,
-        related_name="desperdicio"
+        related_name='desperdicio'
     )
 
     def __str__(self):
