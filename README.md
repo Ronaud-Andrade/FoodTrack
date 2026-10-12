@@ -77,9 +77,12 @@ pip install -r requirements.txt
 ```env
 SECRET_KEY=sua-chave-secreta-aqui
 DEBUG=True
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
 > O projeto usa `django-environ` para carregar essas variáveis em `config/settings.py`.
+> `CORS_ALLOWED_ORIGINS` recebe uma lista de origens separadas por vírgula para o
+> frontend local; em outros ambientes, informe as origens autorizadas nesse valor.
 
 ## Execução local
 
