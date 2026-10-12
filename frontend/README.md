@@ -24,4 +24,5 @@ Aplicação desktop em React, Vite, JavaScript e Tailwind CSS.
 
 Configure `VITE_API_URL` no `.env` para indicar a URL base da API. O valor de
 desenvolvimento é `http://localhost:8000`. A variável está documentada em
-`.env.example`; o frontend ainda não realiza chamadas à API.
+`.env.example`. O login e a restauração da sessão usam a API; as demais telas e
+operações dos recursos ainda não estão conectadas aos serviços de dados.
