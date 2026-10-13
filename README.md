@@ -76,19 +76,27 @@ consultado em `http://127.0.0.1:8000/api/schema/`; uma cópia está em
 
 ### Autenticação e recursos
 
-Obtenha um token com as credenciais de um usuário cadastrado:
+Obtenha um token com as credenciais de um usuário cadastrado. No Postman, envie
+uma requisição `POST` para `http://127.0.0.1:8000/api/token/`, com `Body` >
+`raw` > `JSON`:
 
-```http
-POST /api/token/
-Content-Type: application/json
-
-{"username": "seu-usuario", "password": "sua-senha"}
+```json
+{
+  "username": "seu-usuario",
+  "password": "sua-senha"
+}
 ```
 
-Envie o token nas requisições autenticadas:
+Na resposta, copie o valor de `token`. Para usar o token no Postman, configure
+`Authorization` como `API Key`, com `Key` igual a `Authorization`, `Value` igual
+a `Token SEU_TOKEN` e `Add to` igual a `Header`. **Não use `Bearer Token`**: esta
+API espera o prefixo `Token`.
 
-```http
-Authorization: Token seu-token
+Também é possível selecionar `No Auth` e adicionar manualmente este cabeçalho
+na aba `Headers`:
+
+```text
+Authorization: Token SEU_TOKEN
 ```
 
 Os recursos disponíveis são:
@@ -101,6 +109,35 @@ Os recursos disponíveis são:
 
 Usuários comuns acessam os dados do próprio restaurante; superusuários podem
 administrar dados de todos os restaurantes e são responsáveis por cadastrá-los.
+Todas as rotas abaixo usam `POST`, `Body` > `raw` > `JSON` e o cabeçalho de
+autenticação descrito acima.
+
+Para criar um restaurante, envie para `http://127.0.0.1:8000/api/restaurantes/`.
+Essa operação só é permitida a superusuários:
+
+```json
+{
+  "nome": "Restaurante Exemplo",
+  "cnpj": "12.345.678/0001-90"
+}
+```
+
+Para criar um alimento, envie para `http://127.0.0.1:8000/api/alimentos/`.
+Um superusuário pode informar o ID do restaurante:
+
+```json
+{
+  "nome": "Arroz",
+  "categoria": "Grãos",
+  "medida": "kg",
+  "restaurante": 2
+}
+```
+
+Altere os valores para os dados desejados. Usuários comuns têm o restaurante
+definido automaticamente a partir da própria conta; o campo `restaurante` não
+precisa ser enviado por eles.
+
 Os contratos, campos e permissões estão descritos em
 [`docs/api-mapping.md`](./docs/api-mapping.md).
 
