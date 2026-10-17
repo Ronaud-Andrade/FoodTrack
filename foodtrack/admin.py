@@ -6,7 +6,7 @@ from .models import (Usuario, Restaurante,
 # Register your models here.
 @admin.register(Desperdicio)
 class DesperdicioAdmin(admin.ModelAdmin):
-    list_display = ('descricao', 'motivo', 'quantidade', 'data', 'estoque', 'usuario')
+    list_display = ('descricao', 'quantidade', 'data', 'estoque', 'usuario')
 
 
 @admin.register(Estoque)
@@ -17,9 +17,7 @@ class EstoqueAdmin(admin.ModelAdmin):
         'entrada',
         'saida',
         'localizacao',
-        'lote',
         'validade',
-        'custo_unitario',
     )
 
 
@@ -29,8 +27,6 @@ class AlimentoAdmin(admin.ModelAdmin):
         'nome',
         'categoria',
         'medida',
-        'fornecedor',
-        'estoque_minimo',
         'restaurante',
     )
 

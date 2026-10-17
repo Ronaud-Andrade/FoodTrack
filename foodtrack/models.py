@@ -1,4 +1,3 @@
-from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -67,15 +66,20 @@ class Usuario(AbstractUser): #Alterando o models do user nativo
     
 
 class Alimento(models.Model):
+    class UnidadeMedida(models.TextChoices):
+        QUILOGRAMA = "Kg", "Kg"
+        GRAMA = "g", "g"
+        LITRO = "L", "L"
+        MILILITRO = "ml", "ml"
+        UNIDADE = "un", "Unidade"
+        MACO = "maço", "Maço"
+        CAIXA = "caixa", "Caixa"
+
     nome = models.CharField(max_length=150)
     categoria = models.CharField(max_length=60)
-    medida = models.CharField(max_length=50)
-    fornecedor = models.CharField(max_length=150, blank=True, default="")
-    estoque_minimo = models.DecimalField(
-        max_digits=10,
-        decimal_places=3,
-        default=0,
-        validators=[MinValueValidator(0)],
+    medida = models.CharField(
+        max_length=10,
+        choices=UnidadeMedida.choices,
     )
 
     restaurante = models.ForeignKey(
@@ -93,15 +97,7 @@ class Estoque(models.Model):
     entrada = models.DateField()
     saida = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=150)
-    lote = models.CharField(max_length=50, blank=True, default="")
     validade = models.DateField(null=True, blank=True)
-    custo_unitario = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-    )
 
     #Chave de Alimento
     alimento = models.ForeignKey(
@@ -116,23 +112,7 @@ class Estoque(models.Model):
         return f'{self.alimento.nome} - {self.qntd_atual}'
 
 class Desperdicio(models.Model):
-    class Motivo(models.TextChoices):
-        VENCIMENTO = "Vencimento", "Vencimento"
-        ARMAZENAMENTO_INADEQUADO = (
-            "Armazenamento inadequado",
-            "Armazenamento inadequado",
-        )
-        EXCESSO_DE_COMPRA = "Excesso de compra", "Excesso de compra"
-        EXCESSO_DE_PRODUCAO = "Excesso de produção", "Excesso de produção"
-        ERRO_DE_PREPARO = "Erro de preparo", "Erro de preparo"
-        OUTRO = "Outro", "Outro"
-
     descricao = models.CharField(max_length=300)
-    motivo = models.CharField(
-        max_length=40,
-        choices=Motivo.choices,
-        default=Motivo.OUTRO,
-    )
     quantidade = models.DecimalField(max_digits=10, decimal_places=3)
     data = models.DateField()
 

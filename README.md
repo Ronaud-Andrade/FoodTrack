@@ -10,9 +10,9 @@ em React.
 - **Frontend:** React, Vite, JavaScript e Tailwind CSS.
 - **API:** restaurantes, usuários, alimentos, estoques e desperdícios.
 
-Este branch inclui a tela de login integrada à API, o gerenciamento de sessão e
-as rotas/telas da aplicação. As telas de recursos e seus fluxos de criação,
-edição e exclusão ainda não estão integrados às chamadas da API.
+O frontend autentica com token da API, carrega os recursos do restaurante e
+integra o cadastro de alimentos/estoque, a edição de estoque, os registros de
+desperdício, os relatórios calculáveis e a gestão de usuários/restaurantes.
 
 ## Requisitos
 
@@ -73,6 +73,23 @@ edição e exclusão ainda não estão integrados às chamadas da API.
 A API estará disponível em `http://127.0.0.1:8000/api/`. O schema OpenAPI pode ser
 consultado em `http://127.0.0.1:8000/api/schema/`; uma cópia está em
 [`openapi.yaml`](./openapi.yaml).
+
+## Frontend
+
+Com a API em execução, inicie o frontend:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Por padrão, o frontend chama `http://127.0.0.1:8000/api/`. Para outro endereço,
+defina `VITE_API_URL` no ambiente do Vite, por exemplo
+`VITE_API_URL=https://api.exemplo.com/api`. Em desenvolvimento local, confirme
+que a origem do Vite está permitida em `CORS_ALLOWED_ORIGINS` no backend.
+
+O login usa o endpoint `POST /api/token/` e armazena o token no armazenamento
+local do navegador. O botão com o nome do usuário encerra a sessão.
 
 ### Autenticação e recursos
 
@@ -156,7 +173,7 @@ Configure `VITE_API_URL` em `frontend/.env` com a URL base do backend. O exemplo
 está em `frontend/.env.example`:
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:8000/api
 ```
 
 No Windows (PowerShell), copie o exemplo com:

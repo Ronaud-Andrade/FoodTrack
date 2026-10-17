@@ -1,6 +1,24 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import WorkspacePage from "./Pages";
 import foodTrackLogo from "./assets/foodtrack-logo.png";
+import {
+  ApiError,
+  createUser,
+  createFood,
+  createStock,
+  createWaste,
+  getResources,
+  login,
+  localDateOffset,
+  localDateString,
+  updateStock,
+  type FoodItem,
+  type Restaurant,
+  type StockItem,
+  type User,
+  type WasteRecord,
+  updateRestaurant,
+} from "./api";
 
 type IconName =
   | "alert" | "bell" | "box" | "calendar" | "chart" | "check"
@@ -31,26 +49,6 @@ function Icon({ name, size = 20, className = "" }: { name: IconName; size?: numb
   return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-type Food = {
-  category: string;
-  categoryClass: string;
-  name: string;
-  expiry: string;
-  critical?: boolean;
-  location: string;
-  amount: string;
-  loss: string;
-  suggestion: string;
-};
-
-const foods: Food[] = [
-  { category: "CARNE", categoryClass: "cat-red", name: "Filé Mignon Bovino", expiry: "Vence Hoje (24/10)", critical: true, location: "Câmara Fria 1", amount: "8.5 kg", loss: "R$ 380,00", suggestion: "Prato do dia / Estrogonofe Especial" },
-  { category: "PEIXE", categoryClass: "cat-blue", name: "Salmão Fresco em Postas", expiry: "Vence em 1 dia (25/10)", location: "Pescados & Frutos", amount: "4.2 kg", loss: "R$ 290,00", suggestion: "Tartar no jantar ou Grelhado com Legumes" },
-  { category: "HORTI", categoryClass: "cat-green", name: "Rúcula Hidropônica", expiry: "Vence Hoje (24/10)", critical: true, location: "Hortifruti (Gaveta 3)", amount: "14 maços", loss: "R$ 84,00", suggestion: "Pesto de rúcula para massas ou Salada Caesar" },
-  { category: "LATIC", categoryClass: "cat-indigo", name: "Queijo Muçarela Fatiado", expiry: "Vence em 2 dias (26/10)", location: "Laticínios", amount: "12 kg", loss: "Lote #9822", suggestion: "Gratins, Massas recheadas e Pizzas" },
-  { category: "LATIC", categoryClass: "cat-indigo", name: "Creme de Leite Fresco Pasteurizado", expiry: "Vence em 3 dias (27/10)", location: "Laticínios", amount: "10 L", loss: "Lote #9901", suggestion: "Molhos brancos, Sobremesas e Chantilly" },
-];
-
 const navigation: { label: string; icon: IconName }[] = [
   { label: "Dashboard", icon: "dashboard" },
   { label: "Estoque", icon: "box" },
@@ -66,24 +64,213 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [wasteModal, setWasteModal] = useState(false);
-  const [used, setUsed] = useState<string[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(4);
   const [toast, setToast] = useState("");
+  const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", descricao: "" });
+  const [wasteError, setWasteError] = useState("");
+  const [token, setToken] = useState(() => window.localStorage.getItem("foodtrack-token") || "");
+  const [username, setUsername] = useState(() => window.localStorage.getItem("foodtrack-username") || "");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
 
-  const foodsExpiringToday = useMemo(() => foods.filter((food) =>
-    food.critical && `${food.name} ${food.location}`.toLowerCase().includes(search.toLowerCase())
-  ), [search]);
+  const refreshResources = async (sessionToken = token, currentUsername = username) => {
+    const resources = await getResources(sessionToken);
+    setRestaurants(resources.restaurants);
+    setUsers(resources.users);
+    setFoodItems(resources.foods);
+    setStockItems(resources.stocks);
+    setWasteRecords(resources.waste);
+    setUser(resources.users.find((item) => item.username === currentUsername) || resources.users[0] || null);
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    getResources(token)
+      .then((resources) => {
+        if (!active) return;
+        setRestaurants(resources.restaurants);
+        setUsers(resources.users);
+        setFoodItems(resources.foods);
+        setStockItems(resources.stocks);
+        setWasteRecords(resources.waste);
+        const currentUser = resources.users.find((item) => item.username === username) || resources.users[0] || null;
+        setUser(currentUser);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        if (error instanceof ApiError && error.status === 401) {
+          window.localStorage.removeItem("foodtrack-token");
+          window.localStorage.removeItem("foodtrack-username");
+          setToken("");
+          setLoadError("Sua sessão expirou. Entre novamente.");
+          return;
+        }
+        setLoadError(error instanceof Error ? error.message : "Não foi possível carregar os dados.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [token, username]);
 
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
   };
 
-  const useFood = (name: string) => {
-    setUsed((current) => [...current, name]);
-    notify(`${name} foi enviado para o preparo`);
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError("");
+    try {
+      const result = await login(username, password);
+      window.localStorage.setItem("foodtrack-token", result.token);
+      window.localStorage.setItem("foodtrack-username", username);
+      setPassword("");
+      setToken(result.token);
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Não foi possível entrar.");
+    }
   };
+
+  const logout = () => {
+    window.localStorage.removeItem("foodtrack-token");
+    window.localStorage.removeItem("foodtrack-username");
+    setToken("");
+    setUser(null);
+    setStockItems([]);
+    setFoodItems([]);
+    setWasteRecords([]);
+    setRestaurants([]);
+    setUsers([]);
+    setActive("Dashboard");
+  };
+
+  const submitFood = async (data: { nome: string; categoria: string; medida: string; quantidade: string; validade: string; localizacao: string; restaurante?: number }) => {
+    const food = await createFood(token, {
+      nome: data.nome,
+      categoria: data.categoria,
+      medida: data.medida,
+      ...(data.restaurante ? { restaurante: data.restaurante } : {}),
+    });
+    try {
+      await createStock(token, {
+        alimento: food.id,
+        qntd_atual: data.quantidade,
+        entrada: localDateString(),
+        localizacao: data.localizacao,
+        validade: data.validade || null,
+      });
+    } catch (error) {
+      let refreshMessage = "";
+      try {
+        await refreshResources();
+      } catch (refreshError) {
+        refreshMessage = ` A lista também não pôde ser atualizada: ${refreshError instanceof Error ? refreshError.message : "falha da API"}`;
+      }
+      throw new Error(`O alimento foi criado com ID ${food.id}, mas o estoque não foi salvo. Não repita o cadastro do alimento. Erro: ${error instanceof Error ? error.message : "falha da API"}.${refreshMessage}`);
+    }
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`Alimento e estoque foram salvos, mas a atualização da tela falhou. Não repita o cadastro; recarregue os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  const submitWaste = async (data: { descricao: string; quantidade: string; data: string; estoque: number }) => {
+    await createWaste(token, data);
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O desperdício foi salvo, mas a atualização da tela falhou. Não repita o registro; recarregue os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  const saveStock = async (id: number, data: Partial<Omit<StockItem, "id">>) => {
+    await updateStock(token, id, data);
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O estoque foi salvo, mas a atualização da tela falhou. Recarregue os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  const saveUser = async (data: { username: string; nome: string; email: string; perfil: string; password: string; restaurante?: number }) => {
+    await createUser(token, data);
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O usuário foi criado, mas a atualização da tela falhou. Não repita o cadastro. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  const saveRestaurant = async (id: number, data: { nome: string; cnpj: string }) => {
+    await updateRestaurant(token, id, data);
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O restaurante foi atualizado, mas a tela não pôde recarregar os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  if (!token) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--canvas)] px-4">
+        <form onSubmit={submitLogin} className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-white p-8 shadow-[var(--shadow)]">
+          <img src={foodTrackLogo} alt="FoodTrack" className="mx-auto mb-6 h-24 w-48 object-contain" />
+          <h1 className="text-2xl font-bold">Entrar no FoodTrack</h1>
+          <p className="mt-2 text-sm text-[var(--muted-strong)]">Use suas credenciais do sistema para acessar os dados do restaurante.</p>
+          <label className="mt-6 block"><span className="field-label">Usuário</span><input autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} className="field" /></label>
+          <label className="mt-4 block"><span className="field-label">Senha</span><input autoComplete="current-password" required type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field" /></label>
+          {(loginError || loadError) && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{loginError || loadError}</p>}
+          <button type="submit" className="mt-6 min-h-11 w-full rounded-xl bg-[var(--brand)] font-bold text-white">Entrar</button>
+        </form>
+      </main>
+    );
+  }
+
+  if (loading || !user) {
+    return <main className="grid min-h-screen place-items-center bg-[var(--canvas)] p-6"><section className="max-w-xl rounded-2xl border border-[var(--line)] bg-white p-8 text-center"><h1 className="text-xl font-bold">{loading ? "Carregando dados do restaurante…" : "Não foi possível abrir sua conta"}</h1>{loadError && <p role="alert" className="mt-3 text-sm text-[var(--danger)]">{loadError}</p>}{!loading && <button onClick={logout} className="mt-5 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-white">Voltar ao login</button>}</section></main>;
+  }
+
+  const foodById = new Map(foodItems.map((food) => [food.id, food]));
+  const today = localDateString();
+  const threeDaysFromToday = localDateOffset(3);
+  const foodsExpiringToday = useMemo(() => stockItems
+    .filter((stock) => stock.validade && stock.validade <= threeDaysFromToday)
+    .map((stock) => {
+      const food = foodById.get(stock.alimento);
+      if (!food) return null;
+      const days = Math.ceil((new Date(`${stock.validade}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
+      const categoryClass = food.categoria.toLowerCase().includes("carne") ? "cat-red" : food.categoria.toLowerCase().includes("pesc") ? "cat-blue" : food.categoria.toLowerCase().includes("hort") ? "cat-green" : "cat-indigo";
+      return {
+        id: stock.id,
+        name: food.nome,
+        category: food.categoria.toUpperCase(),
+        categoryClass,
+        expiry: days < 0 ? "Vencido" : days === 0 ? "Vence hoje" : `Vence em ${days} dia(s)`,
+        critical: days <= 1,
+        location: stock.localizacao,
+        amount: `${stock.qntd_atual} ${food.medida}`,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(search.toLowerCase()))
+    .sort((left, right) => left.expiry.localeCompare(right.expiry)), [stockItems, foodItems, search, threeDaysFromToday]);
+  const expiringSoonCount = stockItems.filter((stock) => stock.validade && stock.validade >= today && stock.validade <= threeDaysFromToday).length;
+  const expiredCount = stockItems.filter((stock) => stock.validade && stock.validade < today).length;
+  const wasteThisMonth = wasteRecords.filter((record) => record.data.startsWith(today.slice(0, 7))).length;
+  const notifications = foodsExpiringToday.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
@@ -134,8 +321,8 @@ export default function App() {
 
         <div className={`mx-4 mb-4 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-soft)]/60 p-4 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
           <div className="flex items-center justify-between text-xs font-semibold text-[var(--brand-dark)]"><span>Economia no Mês</span><Icon name="trend" size={16} /></div>
-          <p className="mt-3 text-2xl font-bold tracking-tight">R$ 3.420</p>
-          <p className="mt-1 text-xs text-[var(--brand)]">Desperdício evitado na cozinha</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight">{wasteThisMonth}</p>
+          <p className="mt-1 text-xs text-[var(--brand)]">Registros de desperdício no mês</p>
         </div>
         <button onClick={() => notify("Central de suporte aberta")} title="Suporte & Documentação" className={`mx-5 mb-5 flex min-h-11 items-center gap-3 text-sm text-[var(--muted-strong)] ${sidebarCollapsed ? "lg:justify-center lg:gap-0" : ""}`}><Icon name="help" size={18} /> <span className={sidebarCollapsed ? "lg:hidden" : ""}>Suporte & Documentação</span></button>
       </aside>
@@ -145,40 +332,36 @@ export default function App() {
           <button onClick={() => setMobileMenu(true)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-[var(--line)] lg:hidden" aria-label="Abrir navegação"><Icon name="menu" /></button>
           <div className="relative min-w-0 flex-1 md:max-w-2xl">
             <Icon name="search" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--icon)]" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] pl-11 pr-4 text-sm outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" placeholder="Buscar insumo, câmara, lote..." aria-label="Buscar insumo, câmara ou lote" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] pl-11 pr-4 text-sm outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" placeholder="Buscar insumo ou local..." aria-label="Buscar insumo ou local de armazenamento" />
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-3">
           <div className="relative">
             <button onClick={() => setNotificationsOpen((current) => !current)} className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[var(--muted-strong)] transition ${notificationsOpen ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : ""}`} aria-label="Notificações de validade" aria-expanded={notificationsOpen}>
               <Icon name="bell" size={20} />
-              {unreadNotifications > 0 && <span className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[var(--danger)] text-[0.65rem] font-bold text-white">{unreadNotifications}</span>}
+              {expiringSoonCount > 0 && <span className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[var(--danger)] text-[0.65rem] font-bold text-white">{expiringSoonCount}</span>}
             </button>
             {notificationsOpen && (
               <div className="absolute right-0 top-14 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.16)]">
                 <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
                   <div><h2 className="font-bold">Notificações</h2><p className="mt-0.5 text-xs text-[var(--muted)]">Alertas de validade do estoque</p></div>
-                  <button onClick={() => setUnreadNotifications(0)} className="min-h-10 text-xs font-bold text-[var(--brand-dark)]">Marcar como lidas</button>
+                  <span className="text-xs text-[var(--muted)]">{expiringSoonCount} itens em até 3 dias</span>
                 </div>
                 <div className="max-h-[26rem] overflow-y-auto">
-                  {([
-                    ["Filé Mignon Bovino", "Vence hoje", "8,5 kg na Câmara Fria 1", true],
-                    ["Rúcula Hidropônica", "Vence hoje", "14 maços em Hortifruti", true],
-                    ["Salmão Fresco em Postas", "Vence amanhã", "4,2 kg na Câmara Fria 2", false],
-                    ["Queijo Muçarela Fatiado", "Vence em 2 dias", "12 kg na Geladeira 1", false],
-                  ] as const).map(([name, expiry, detail, critical], index) => (
-                    <button key={String(name)} onClick={() => { setActive("Prioridades"); setNotificationsOpen(false); setUnreadNotifications((current) => Math.max(0, current - 1)); }} className="flex min-h-[88px] w-full gap-3 border-b border-[var(--line)] px-5 py-4 text-left last:border-0 hover:bg-[var(--surface-soft)]">
-                      <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${critical ? "bg-[var(--danger-soft)] text-[var(--danger)]" : "bg-[var(--warning-soft)] text-[var(--warning)]"}`}><Icon name={critical ? "alert" : "calendar"} size={17} /></span>
-                      <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-3"><strong className="truncate text-sm">{name}</strong>{index < unreadNotifications && <i className="size-2 shrink-0 rounded-full bg-[var(--brand)]" />}</span><span className={`mt-0.5 block text-xs font-bold ${critical ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{expiry}</span><span className="mt-1 block text-xs text-[var(--muted)]">{detail}</span></span>
+                  {notifications.map((food) => (
+                    <button key={food.id} onClick={() => { setActive("Estoque"); setNotificationsOpen(false); }} className="flex min-h-[88px] w-full gap-3 border-b border-[var(--line)] px-5 py-4 text-left last:border-0 hover:bg-[var(--surface-soft)]">
+                      <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${food.critical ? "bg-[var(--danger-soft)] text-[var(--danger)]" : "bg-[var(--warning-soft)] text-[var(--warning)]"}`}><Icon name={food.critical ? "alert" : "calendar"} size={17} /></span>
+                      <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{food.name}</strong><span className={`mt-0.5 block text-xs font-bold ${food.critical ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{food.expiry}</span><span className="mt-1 block text-xs text-[var(--muted)]">{food.amount} · {food.location}</span></span>
                     </button>
                   ))}
+                  {notifications.length === 0 && <p className="p-5 text-sm text-[var(--muted-strong)]">Nenhum item com validade próxima.</p>}
                 </div>
                 <button onClick={() => { setActive("Prioridades"); setNotificationsOpen(false); }} className="min-h-11 w-full border-t border-[var(--line)] bg-[var(--surface-soft)] text-sm font-bold text-[var(--brand-dark)]">Ver todos os itens prioritários</button>
               </div>
             )}
           </div>
-          <button onClick={() => notify("Perfil de Bruno Silveira aberto")} className="flex min-h-11 items-center gap-3 text-left">
-            <span className="grid size-10 place-items-center rounded-full border border-[var(--line)] bg-slate-100 text-xs font-bold">BS</span>
-            <span className="hidden sm:block"><strong className="block text-sm font-semibold">Chef Bruno Silveira</strong><span className="block text-xs leading-tight text-[var(--muted)]">Gerente de Operações</span></span>
+          <button onClick={logout} className="flex min-h-11 items-center gap-3 text-left" aria-label="Sair da conta">
+            <span className="grid size-10 place-items-center rounded-full border border-[var(--line)] bg-slate-100 text-xs font-bold">{user.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
+            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{user.perfil} · Sair</span></span>
           </button>
           </div>
         </header>
@@ -187,30 +370,30 @@ export default function App() {
           {active === "Dashboard" ? <>
           <section>
             <div>
-              <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]"><span className="size-2 rounded-full bg-[var(--success)]" /> Turno operacional ativo <span className="text-[var(--line-strong)]">•</span><span className="text-[var(--muted-strong)]">Quarta-feira, 24 de outubro</span></p>
+              <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]"><span className="size-2 rounded-full bg-[var(--success)]" /> Estoque do restaurante <span className="text-[var(--line-strong)]">•</span><span className="text-[var(--muted-strong)]">{new Date().toLocaleDateString("pt-BR")}</span></p>
               <h1 className="text-3xl font-bold tracking-[-0.04em] sm:text-[2rem]">Painel Operacional da Cozinha</h1>
             </div>
           </section>
 
-          <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm lg:flex-row lg:items-center">
+          {expiringSoonCount > 0 && <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm lg:flex-row lg:items-center">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[var(--warning-border)] bg-white/50 text-[var(--warning)]"><Icon name="alert" size={20} /></span>
-            <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: 6 itens vencem nas próximas 48 horas.</strong> Priorize esses insumos no mise en place do almoço e nas sugestões do menu executivo para evitar perdas estimadas em R$ 1.150.</p>
+            <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: {expiringSoonCount} estoques vencem nos próximos 3 dias.</strong> Consulte a validade e priorize esses itens.</p>
             <button onClick={() => setActive("Prioridades")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--warning-button)] px-5 font-bold text-[var(--warning-ink)]">Ver itens prioritários <Icon name="chevron" size={16} /></button>
-          </section>
+          </section>}
 
           <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total Alimentos Ativos" value="348" suffix="itens" icon="box" footer="+12 novos esta semana" />
-            <StatCard label="Vencem em ≤ 3 dias" value="8" suffix="itens em risco" badge="Atenção" warning footer={<>Est. Perda: <strong className="text-[var(--danger)]">R$ 1.150,00</strong></>} />
-            <StatCard label="Alimentos Vencidos" value="2" suffix="itens na câmara" badge="Ação Requerida" danger footer="Descartar / Registrar baixa →" />
-            <StatCard label="Desperdício no Mês" value="18,4" suffix="kg  |  R$ 460,00" icon="trash" footer="↘ -28% vs mês anterior (Economia)" />
+            <StatCard label="Alimentos cadastrados" value={String(foodItems.length)} suffix="itens" icon="box" footer={`${stockItems.length} registros no estoque`} />
+            <StatCard label="Vencem em até 3 dias" value={String(expiringSoonCount)} suffix="registros de estoque" badge={expiringSoonCount ? "Atenção" : undefined} warning={expiringSoonCount > 0} footer="Calculado pelas datas de validade" />
+            <StatCard label="Validades vencidas" value={String(expiredCount)} suffix="registros de estoque" badge={expiredCount ? "Verificar" : undefined} danger={expiredCount > 0} footer="A API não oferece baixa automática" />
+            <StatCard label="Desperdícios no mês" value={String(wasteThisMonth)} suffix="registros" icon="trash" footer="Custo não disponível na API" />
           </section>
 
           <section className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(310px,0.96fr)]">
             <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow)]">
               <div className="flex flex-col gap-5 border-b border-[var(--line)] p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold leading-tight">Alimentos que Vencem Hoje</h2>
-                  <p className="mt-1 text-sm text-[var(--muted-strong)]">2 itens precisam ser utilizados ou baixados ainda hoje.</p>
+                  <h2 className="text-lg font-bold leading-tight">Estoques com validade próxima</h2>
+                  <p className="mt-1 text-sm text-[var(--muted-strong)]">{foodsExpiringToday.length} registros vencidos ou com vencimento em até 3 dias.</p>
                 </div>
                 <span className="w-fit rounded-full bg-[var(--danger-soft)] px-3 py-1.5 text-xs font-bold text-[var(--danger)]">Ação imediata</span>
               </div>
@@ -223,63 +406,80 @@ export default function App() {
                         <h3 className="font-bold">{food.name}</h3>
                         <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${food.critical ? "border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger)]" : "border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-ink)]"}`}>{food.critical && "• "}{food.expiry}</span>
                       </div>
-                      <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--muted-strong)]"><span>{food.location}</span><span className="text-[var(--line-strong)]">•</span><span>{food.amount}</span><span className="text-[var(--line-strong)]">•</span><span>{food.loss.startsWith("R$") ? <>Perda est.: <strong className="font-medium text-[var(--danger)]">{food.loss}</strong></> : food.loss}</span></p>
-                      <p className="mt-2 inline-flex max-w-full items-start gap-2 rounded-lg border border-[var(--suggestion-border)] bg-[var(--suggestion-soft)] px-3 py-1.5 text-sm leading-snug"><Icon name="sparkle" size={16} className="mt-0.5 shrink-0 text-[var(--warning)]" /><span><strong>Sugestão:</strong> {food.suggestion}</span></p>
+                      <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--muted-strong)]"><span>{food.location}</span><span className="text-[var(--line-strong)]">•</span><span>{food.amount}</span></p>
                     </div>
                     <div className="flex flex-row items-center gap-3 sm:col-start-2 lg:col-start-auto lg:flex-col lg:items-stretch">
-                      <button disabled={used.includes(food.name)} onClick={() => useFood(food.name)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-default disabled:bg-[var(--muted)]"><Icon name="check" size={17} /> {used.includes(food.name) ? "No preparo" : "Usar no Preparo"}</button>
-                      <button onClick={() => setWasteModal(true)} className="min-h-10 text-sm text-[var(--muted)] hover:text-[var(--danger)]">Descarte / Baixa</button>
+                      <button onClick={() => { setWasteForm({ estoque: String(food.id), quantidade: "", descricao: "" }); setWasteError(""); setWasteModal(true); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-3 text-sm font-bold text-white">Registrar baixa</button>
                     </div>
                   </article>
                 ))}
                 {foodsExpiringToday.length === 0 && <div className="p-12 text-center"><p className="font-semibold">Nenhum alimento encontrado</p><p className="mt-1 text-sm text-[var(--muted)]">Tente alterar o texto pesquisado.</p></div>}
               </div>
               <div className="flex flex-col gap-3 bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)] sm:flex-row sm:items-center sm:justify-between">
-                <span>Exibindo somente os alimentos que vencem hoje.</span>
+                <span>Lista de estoques vencidos ou com vencimento em até 3 dias.</span>
                 <button onClick={() => setActive("Prioridades")} className="flex min-h-10 items-center gap-1 font-bold text-[var(--brand-dark)]">Ver próximas validades <Icon name="chevron" size={16} /></button>
               </div>
             </div>
 
             <aside className="space-y-5">
               <Panel>
-                <div className="flex items-center justify-between"><h2 className="panel-title">Status do Estoque</h2><strong className="text-sm">348 itens</strong></div>
-                <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-[var(--surface-soft)]"><span className="w-[82%] bg-[var(--success)]" /><span className="w-[12%] bg-[var(--warning-bright)]" /><span className="w-[6%] bg-[var(--danger-bright)]" /></div>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-[var(--muted-strong)]">
-                  <StatusDot color="bg-[var(--success)]" label="Em dia" value="82%" detail="(285)" />
-                  <StatusDot color="bg-[var(--warning-bright)]" label="Atenção" value="12%" detail="(42)" />
-                  <StatusDot color="bg-[var(--danger-bright)]" label="Crítico" value="6%" detail="(21)" />
-                </div>
-                <div className="mt-5 flex justify-between border-t border-[var(--line)] pt-4 text-sm"><span className="text-[var(--muted-strong)]">Acurácia de Inventário:</span><strong>96.4%</strong></div>
+                <div className="flex items-center justify-between"><h2 className="panel-title">Resumo do Estoque</h2><strong className="text-sm">{stockItems.length} registros</strong></div>
+                <p className="mt-4 text-sm text-[var(--muted-strong)]">{foodItems.length} alimentos em {new Set(foodItems.map((food) => food.categoria)).size} categorias.</p>
+                <p className="mt-3 text-sm text-[var(--muted-strong)]">{stockItems.filter((item) => !item.validade).length} registros sem validade informada.</p>
               </Panel>
 
               <Panel>
-                <div className="flex items-center justify-between"><h2 className="panel-title">Motivos de Perdas</h2><span className="text-xs text-[var(--muted)]">Esta Semana</span></div>
-                <div className="mt-5 space-y-5">
-                  <LossBar label="Armazenamento Inadequado" value="45%" note="Oscilação na Câmara Fria 2 detectada" width="45%" color="bg-[var(--danger-bright)]" />
-                  <LossBar label="Vencimento na Prateleira" value="35%" note="Giro abaixo da média em laticínios" width="35%" color="bg-[var(--warning-bright)]" />
-                  <LossBar label="Excesso de Compra" value="20%" note="Pedidos além do target de hortifrúti" width="20%" color="bg-sky-400" />
-                </div>
+                <div className="flex items-center justify-between"><h2 className="panel-title">Desperdícios</h2><span className="text-xs text-[var(--muted)]">Este mês</span></div>
+                <p className="mt-5 text-3xl font-bold">{wasteThisMonth}</p>
+                <p className="mt-1 text-sm text-[var(--muted-strong)]">registros; custo e baixa automática não são oferecidos pela API.</p>
               </Panel>
 
             </aside>
           </section>
-          </> : <WorkspacePage page={active} navigate={setActive} notify={notify} openWaste={() => setWasteModal(true)} />}
+          </> : <WorkspacePage
+            page={active}
+            navigate={setActive}
+            notify={notify}
+            openWaste={(stockId) => { setWasteForm({ estoque: stockId ? String(stockId) : "", quantidade: "", descricao: "" }); setWasteError(""); setWasteModal(true); }}
+            user={user}
+            users={users}
+            token={token}
+            restaurants={restaurants}
+            foods={foodItems}
+            stocks={stockItems}
+            waste={wasteRecords}
+            saveFood={submitFood}
+            saveStock={saveStock}
+            saveWaste={submitWaste}
+            saveUser={saveUser}
+            saveRestaurant={saveRestaurant}
+          />}
         </main>
       </div>
 
       {wasteModal && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="waste-title">
-          <form onSubmit={(event) => { event.preventDefault(); setWasteModal(false); notify("Desperdício registrado com sucesso"); }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
+          <form onSubmit={async (event) => {
+            event.preventDefault();
+            setWasteError("");
+            try {
+              await submitWaste({ descricao: wasteForm.descricao, quantidade: wasteForm.quantidade, data: localDateString(), estoque: Number(wasteForm.estoque) });
+              setWasteModal(false);
+              notify("Desperdício registrado.");
+            } catch (error) {
+              setWasteError(error instanceof Error ? error.message : "Não foi possível registrar o desperdício.");
+            }
+          }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
             <div className="flex items-start justify-between gap-4">
-              <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">Informe a baixa para manter o estoque preciso.</p></div>
+              <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">O registro não reduz automaticamente a quantidade em estoque.</p></div>
               <button type="button" onClick={() => setWasteModal(false)} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
             </div>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="field-label">Alimento *</span><select required className="field"><option value="">Selecione um alimento</option>{foods.map((food) => <option key={food.name}>{food.name}</option>)}</select></label>
-              <label><span className="field-label">Quantidade *</span><input required type="number" min="0.1" step="0.1" className="field" placeholder="0,0" /></label>
-              <label><span className="field-label">Unidade *</span><select className="field"><option>kg</option><option>unidades</option><option>litros</option></select></label>
-              <label className="sm:col-span-2"><span className="field-label">Motivo *</span><select required className="field"><option>Vencimento</option><option>Armazenamento inadequado</option><option>Erro de preparo</option><option>Excesso de produção</option></select></label>
+              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({stock.qntd_atual} {food?.medida || ""})</option>; })}</select></label>
+              <label><span className="field-label">Quantidade *</span><input required value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: event.target.value }))} type="number" min="0.001" step="0.001" className="field" placeholder="0,0" /></label>
+              <label><span className="field-label">Descrição *</span><input required maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Motivo ou detalhe da baixa" /></label>
             </div>
+            {wasteError && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{wasteError}</p>}
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setWasteModal(false)} className="min-h-11 rounded-xl border border-[var(--line)] px-5 text-sm font-bold">Cancelar</button>
               <button type="submit" className="min-h-11 rounded-xl bg-[var(--danger)] px-5 text-sm font-bold text-white">Confirmar registro</button>
