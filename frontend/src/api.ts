@@ -41,7 +41,12 @@ export type WasteRecord = {
   usuario: number;
 };
 
-const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
+const configuredApiUrl = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+const API_URL = configuredApiUrl.startsWith("/")
+  ? configuredApiUrl
+  : configuredApiUrl.endsWith("/api")
+    ? configuredApiUrl
+    : `${configuredApiUrl}/api`;
 
 export function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -79,7 +84,7 @@ async function request<T>(path: string, token?: string, init: RequestInit = {}):
       },
     });
   } catch {
-    throw new ApiError(`Não foi possível conectar à API em ${API_URL}. Verifique se o backend está ativo.`, 0);
+    throw new ApiError(`Não foi possível acessar a API em ${API_URL}. Confira se o servidor de desenvolvimento e o backend estão ativos.`, 0);
   }
 
   if (response.status === 204) return undefined as T;

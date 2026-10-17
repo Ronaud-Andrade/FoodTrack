@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import WorkspacePage from "./Pages";
 import foodTrackLogo from "./assets/foodtrack-logo.png";
 import {
@@ -137,6 +137,7 @@ export default function App() {
       window.localStorage.setItem("foodtrack-token", result.token);
       window.localStorage.setItem("foodtrack-username", username);
       setPassword("");
+      setActive("Dashboard");
       setToken(result.token);
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Não foi possível entrar.");
@@ -246,7 +247,7 @@ export default function App() {
   const foodById = new Map(foodItems.map((food) => [food.id, food]));
   const today = localDateString();
   const threeDaysFromToday = localDateOffset(3);
-  const foodsExpiringToday = useMemo(() => stockItems
+  const foodsExpiringToday = stockItems
     .filter((stock) => stock.validade && stock.validade <= threeDaysFromToday)
     .map((stock) => {
       const food = foodById.get(stock.alimento);
@@ -266,7 +267,7 @@ export default function App() {
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(search.toLowerCase()))
-    .sort((left, right) => left.expiry.localeCompare(right.expiry)), [stockItems, foodItems, search, threeDaysFromToday]);
+    .sort((left, right) => left.expiry.localeCompare(right.expiry));
   const expiringSoonCount = stockItems.filter((stock) => stock.validade && stock.validade >= today && stock.validade <= threeDaysFromToday).length;
   const expiredCount = stockItems.filter((stock) => stock.validade && stock.validade < today).length;
   const wasteThisMonth = wasteRecords.filter((record) => record.data.startsWith(today.slice(0, 7))).length;

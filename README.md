@@ -83,10 +83,12 @@ cd frontend
 npm run dev
 ```
 
-Por padrão, o frontend chama `http://127.0.0.1:8000/api/`. Para outro endereço,
-defina `VITE_API_URL` no ambiente do Vite, por exemplo
-`VITE_API_URL=https://api.exemplo.com/api`. Em desenvolvimento local, confirme
-que a origem do Vite está permitida em `CORS_ALLOWED_ORIGINS` no backend.
+Em desenvolvimento local, o frontend chama `/api` na própria origem do Vite, e
+o Vite encaminha as requisições para `http://127.0.0.1:8000`. Isso evita que o
+navegador precise acessar a API diretamente ou depender de CORS. Para apontar
+diretamente para outra API, defina `VITE_API_URL`, por exemplo
+`VITE_API_URL=https://api.exemplo.com/api`, e permita a origem do frontend em
+`CORS_ALLOWED_ORIGINS` no backend remoto.
 
 O login usa o endpoint `POST /api/token/` e armazena o token no armazenamento
 local do navegador. O botão com o nome do usuário encerra a sessão.
@@ -169,12 +171,14 @@ cd frontend
 npm ci
 ```
 
-Configure `VITE_API_URL` em `frontend/.env` com a URL base do backend. O exemplo
-está em `frontend/.env.example`:
+O arquivo `frontend/.env.example` usa o proxy local do Vite:
 
 ```env
-VITE_API_URL=http://localhost:8000/api
+VITE_API_URL=/api
 ```
+
+Copie-o para `frontend/.env` caso ainda não exista ou ajuste a variável para
+`/api`. O proxy encaminha esse caminho para o backend em `127.0.0.1:8000`.
 
 No Windows (PowerShell), copie o exemplo com:
 
