@@ -41,6 +41,13 @@ export type WasteRecord = {
   usuario: number;
 };
 
+const quantityFormatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+
+export function formatQuantity(quantity: string) {
+  const value = Number(quantity);
+  return Number.isFinite(value) ? quantityFormatter.format(value) : quantity;
+}
+
 const configuredApiUrl = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
 const API_URL = configuredApiUrl.startsWith("/")
   ? configuredApiUrl

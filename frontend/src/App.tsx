@@ -7,6 +7,7 @@ import {
   createFood,
   createStock,
   createWaste,
+  formatQuantity,
   getResources,
   login,
   localDateOffset,
@@ -262,7 +263,7 @@ export default function App() {
         expiry: days < 0 ? "Vencido" : days === 0 ? "Vence hoje" : `Vence em ${days} dia(s)`,
         critical: days <= 1,
         location: stock.localizacao,
-        amount: `${stock.qntd_atual} ${food.medida}`,
+        amount: `${formatQuantity(stock.qntd_atual)} ${food.medida}`,
       };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -476,7 +477,7 @@ export default function App() {
               <button type="button" onClick={() => setWasteModal(false)} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
             </div>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({stock.qntd_atual} {food?.medida || ""})</option>; })}</select></label>
+              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.qntd_atual)} {food?.medida || ""})</option>; })}</select></label>
               <label><span className="field-label">Quantidade *</span><input required value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: event.target.value }))} type="number" min="0.001" step="0.001" className="field" placeholder="0,0" /></label>
               <label><span className="field-label">Descrição *</span><input required maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Motivo ou detalhe da baixa" /></label>
             </div>
