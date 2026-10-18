@@ -13,7 +13,7 @@ class DesperdicioAdmin(admin.ModelAdmin):
 class EstoqueAdmin(admin.ModelAdmin):
     list_display = (
         'alimento',
-        'qntd_atual',
+        'quantidade_atual',
         'entrada',
         'saida',
         'localizacao',

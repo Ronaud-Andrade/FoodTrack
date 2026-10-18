@@ -763,7 +763,7 @@ components:
           readOnly: true
         alimento:
           type: integer
-        qntd_atual:
+        quantidade_atual:
           type: string
           format: decimal
           pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
@@ -786,13 +786,13 @@ components:
       - entrada
       - id
       - localizacao
-      - qntd_atual
+      - quantidade_atual
     EstoqueRequest:
       type: object
       properties:
         alimento:
           type: integer
-        qntd_atual:
+        quantidade_atual:
           type: string
           format: decimal
           pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
@@ -815,7 +815,7 @@ components:
       - alimento
       - entrada
       - localizacao
-      - qntd_atual
+      - quantidade_atual
     MedidaEnum:
       enum:
       - Kg
@@ -870,7 +870,7 @@ components:
       properties:
         alimento:
           type: integer
-        qntd_atual:
+        quantidade_atual:
           type: string
           format: decimal
           pattern: ^-?\d{0,7}(?:\.\d{0,3})?$

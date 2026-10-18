@@ -129,7 +129,7 @@ class EstoqueSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'alimento',
-            'qntd_atual',
+            'quantidade_atual',
             'entrada',
             'saida',
             'localizacao',

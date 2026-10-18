@@ -71,7 +71,7 @@ function PriorityPage({ navigate, openWaste, foods, stocks }: PageProps) {
       id: stock.id,
       name: food.nome,
       category: food.categoria,
-      amount: `${formatQuantity(stock.qntd_atual)} ${food.medida}`,
+      amount: `${formatQuantity(stock.quantidade_atual)} ${food.medida}`,
       expiry: days < 0 ? "Vencido" : days === 0 ? "Vence hoje" : `Vence em ${days} dia(s)`,
       critical: days <= 1,
     };
@@ -127,7 +127,7 @@ function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }
   const [category, setCategory] = useState("Todas");
   const [status, setStatus] = useState("Todos");
   const [detail, setDetail] = useState<InventoryRow | null>(null);
-  const [editForm, setEditForm] = useState({ qntd_atual: "", localizacao: "", validade: "", entrada: "" });
+  const [editForm, setEditForm] = useState({ quantidade_atual: "", localizacao: "", validade: "", entrada: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const today = localDateString();
@@ -139,8 +139,8 @@ function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }
       id: stock.id,
       name: food.nome,
       category: food.categoria,
-      stock: `${formatQuantity(stock.qntd_atual)} ${food.medida}`,
-      quantity: stock.qntd_atual,
+      stock: `${formatQuantity(stock.quantidade_atual)} ${food.medida}`,
+      quantity: stock.quantidade_atual,
       location: stock.localizacao,
       validity: stock.validade ? new Date(`${stock.validade}T00:00:00`).toLocaleDateString("pt-BR") : "Não informada",
       status: stockStatus,
@@ -159,7 +159,7 @@ function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }
   };
   const openDetails = (item: InventoryRow) => {
     setDetail(item);
-    setEditForm({ qntd_atual: item.quantity, localizacao: item.location, validade: stocks.find((stock) => stock.id === item.id)?.validade || "", entrada: item.entry });
+    setEditForm({ quantidade_atual: item.quantity, localizacao: item.location, validade: stocks.find((stock) => stock.id === item.id)?.validade || "", entrada: item.entry });
     setError("");
   };
   const updateDetails = async (event: FormEvent) => {
@@ -169,7 +169,7 @@ function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }
     setError("");
     try {
       await saveStock(detail.id, {
-        qntd_atual: editForm.qntd_atual,
+        quantidade_atual: editForm.quantidade_atual,
         localizacao: editForm.localizacao,
         validade: editForm.validade || null,
         entrada: editForm.entrada,
@@ -212,7 +212,7 @@ function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }
         <div className="bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)]">Exibindo {rows.length} registros de estoque.</div>
       </section>
       {detail && <Modal title={`Editar estoque: ${detail.name}`} close={() => setDetail(null)}><form onSubmit={updateDetails} className="grid gap-4 sm:grid-cols-2">
-        <Field label={`Quantidade (${foods.find((food) => food.nome === detail.name)?.medida || ""})`} required><input required min="0" step="0.001" type="number" value={editForm.qntd_atual} onChange={(event) => setEditForm((current) => ({ ...current, qntd_atual: event.target.value }))} className="field" /></Field>
+        <Field label={`Quantidade (${foods.find((food) => food.nome === detail.name)?.medida || ""})`} required><input required min="0" step="0.001" type="number" value={editForm.quantidade_atual} onChange={(event) => setEditForm((current) => ({ ...current, quantidade_atual: event.target.value }))} className="field" /></Field>
         <Field label="Localização" required><input required maxLength={150} value={editForm.localizacao} onChange={(event) => setEditForm((current) => ({ ...current, localizacao: event.target.value }))} className="field" /></Field>
         <Field label="Validade"><input type="date" value={editForm.validade} onChange={(event) => setEditForm((current) => ({ ...current, validade: event.target.value }))} className="field" /></Field>
         <Field label="Data de entrada" required><input required type="date" value={editForm.entrada} onChange={(event) => setEditForm((current) => ({ ...current, entrada: event.target.value }))} className="field" /></Field>

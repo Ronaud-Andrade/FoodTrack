@@ -134,7 +134,7 @@ deve pertencer ao restaurante do usuário comum.
 |---|---|---|---|
 | `id` | inteiro | Somente leitura | Obrigatório |
 | `alimento` | inteiro (ID de alimento) | Obrigatório em criação e substituição | Sempre |
-| `qntd_atual` | decimal | Obrigatório em criação e substituição | Sempre |
+| `quantidade_atual` | decimal | Obrigatório em criação e substituição | Sempre |
 | `entrada` | data (`YYYY-MM-DD`) | Obrigatório em criação e substituição | Sempre |
 | `saida` | data (`YYYY-MM-DD`) ou `null` | Opcional; aceita `null` | Sempre; pode ser `null` |
 | `localizacao` | string, até 150 caracteres | Obrigatório em criação e substituição | Sempre |
@@ -182,28 +182,28 @@ relacionam ao estoque por `Desperdicio.estoque`.
 | Header | Nome e cargo do usuário logado | `GET /api/usuarios/`: `username`, `nome`, `perfil` | **Calculável** após localizar o registro pelo `username` usado no login. Não existe endpoint `me`. |
 | Dashboard | Data atual | Nenhum | **Calculável no frontend** com o relógio local; não vem da API. |
 | Dashboard | Total de alimentos ativos e novos na semana | `GET /api/alimentos/` fornece apenas `id`, `nome`, `categoria`, `medida`, `restaurante` | Contagem total é possível, mas “ativos” não tem campo de status; novos na semana não é possível porque não há `created_at`. **SEM FONTE** para esses critérios. |
-| Dashboard | Itens que vencem em até 3 dias e perda estimada em R$ | Estoque fornece `validade`, `qntd_atual` e alimento relacionado; não há custo nem preço | Validade e quantidade podem ser calculadas; perda estimada em R$ **SEM FONTE NA API**. |
+| Dashboard | Itens que vencem em até 3 dias e perda estimada em R$ | Estoque fornece `validade`, `quantidade_atual` e alimento relacionado; não há custo nem preço | Validade e quantidade podem ser calculadas; perda estimada em R$ **SEM FONTE NA API**. |
 | Dashboard | Alimentos vencidos | `GET /api/estoques/`: `validade` | **Calculável** comparando a validade com a data atual. |
 | Dashboard | Desperdício do mês em kg | `GET /api/desperdicios/`: `data`, `quantidade`, `estoque`; por estoque, `alimento.medida` | **Parcialmente calculável** filtrando os registros pela data e somando quantidades de medidas compatíveis. As unidades são enumeradas, mas não há conversão automática entre elas ou para unidades de item. |
 | Dashboard | Desperdício do mês em R$ | Nenhum campo de custo/preço | **SEM FONTE NA API**. |
 | Dashboard | Variação vs. mês anterior | `Desperdicio.data`, `quantidade` | **Parcialmente calculável** como variação de quantidades nos dois períodos, sujeito à mesma limitação de unidade; variação financeira não é possível. |
-| Dashboard | Alimentos que vencem hoje: categoria, nome, validade, local, quantidade/unidade, perda estimada, sugestão de uso | `GET /api/estoques/` fornece `validade`, `qntd_atual`, `localizacao`; `GET /api/alimentos/` fornece nome, categoria e `medida` | **Parcial**: os campos disponíveis podem ser combinados e filtrados pela data; perda estimada e sugestão de uso não têm fonte na API. |
-| Dashboard | Status do estoque (percentual e contagem em dia/atenção/crítico) | `GET /api/estoques/`: `qntd_atual` | **SEM FONTE** para status/limiares e percentuais; não existem estoque mínimo nem regras de criticidade. |
+| Dashboard | Alimentos que vencem hoje: categoria, nome, validade, local, quantidade/unidade, perda estimada, sugestão de uso | `GET /api/estoques/` fornece `validade`, `quantidade_atual`, `localizacao`; `GET /api/alimentos/` fornece nome, categoria e `medida` | **Parcial**: os campos disponíveis podem ser combinados e filtrados pela data; perda estimada e sugestão de uso não têm fonte na API. |
+| Dashboard | Status do estoque (percentual e contagem em dia/atenção/crítico) | `GET /api/estoques/`: `quantidade_atual` | **SEM FONTE** para status/limiares e percentuais; não existem estoque mínimo nem regras de criticidade. |
 | Dashboard | Acurácia de inventário | Nenhum | **SEM FONTE NA API**; não há quantidade contada nem comparação com quantidade esperada. |
 | Dashboard | Motivos de perdas (percentual por motivo) | `GET /api/desperdicios/`: `descricao` | Pode-se agrupar texto de `descricao` como aproximação, mas não há campo ou vocabulário controlado de motivo. **Sem fonte confiável** para percentual por motivo. |
 | Dashboard | Economia do mês | Nenhum | **SEM FONTE NA API**; não existem dados de economia nem de aproveitamento evitado. |
-| Estoque | Total de itens | `GET /api/estoques/`: `id`, `qntd_atual` | **Calculável**, contando registros/linhas de estoque ou somando `qntd_atual`; a tela precisa definir qual dos dois significa “itens”. |
+| Estoque | Total de itens | `GET /api/estoques/`: `id`, `quantidade_atual` | **Calculável**, contando registros/linhas de estoque ou somando `quantidade_atual`; a tela precisa definir qual dos dois significa “itens”. |
 | Estoque | Total de categorias | `GET /api/estoques/` + `GET /api/alimentos/`: `categoria` | **Calculável** contando categorias distintas dos alimentos associados aos estoques. |
 | Estoque | Valor em estoque | Nenhum custo/preço em alimento ou estoque | **SEM FONTE NA API**. |
-| Estoque | Itens com estoque baixo | `qntd_atual` | **SEM FONTE NA API** para estoque mínimo ou status. |
+| Estoque | Itens com estoque baixo | `quantidade_atual` | **SEM FONTE NA API** para estoque mínimo ou status. |
 | Estoque | Próximos do vencimento | `GET /api/estoques/`: `validade` | **Calculável** comparando a validade com a data atual. |
-| Estoque | Tabela: alimento, categoria, quantidade/unidade, localização | `GET /api/estoques/` + alimento relacionado: `nome`, `categoria`, `qntd_atual`, `medida`, `localizacao` | **Disponível** ao combinar `alimento` com `id` do alimento. |
+| Estoque | Tabela: alimento, categoria, quantidade/unidade, localização | `GET /api/estoques/` + alimento relacionado: `nome`, `categoria`, `quantidade_atual`, `medida`, `localizacao` | **Disponível** ao combinar `alimento` com `id` do alimento. |
 | Estoque | Tabela: validade e status | `GET /api/estoques/`: `validade` | Validade disponível; status/limiares não têm fonte na API. |
 | Estoque | Filtros por categoria e status | Nenhum parâmetro de filtro | **SEM FONTE NA API** para filtros no servidor; o frontend poderia filtrar em memória a lista carregada por categoria, mas não há status. |
 | Estoque | Paginação | Listagem retorna array sem paginação | **SEM PAGINAÇÃO NA API**; paginação local no frontend é possível após carregar todos os resultados. |
 | Cadastrar Alimento | Nome, categoria, unidade | `POST /api/alimentos/`: `nome`, `categoria`, `medida` | **Disponível**; o nome do campo para unidade no contrato é `medida`. |
 | Cadastrar Alimento | Validade do estoque | `POST /api/estoques/`: `validade` | **Disponível**; validade pertence ao estoque, não ao alimento. Fornecedor, custo unitário, lote e estoque mínimo não fazem parte do modelo. |
-| Cadastrar Alimento | Quantidade inicial e local de armazenamento | `POST /api/estoques/`: `alimento`, `qntd_atual`, `entrada`, `localizacao` | **Parcialmente disponível** em recurso separado após criar o alimento. `entrada` (data de entrada) é obrigatória; não equivale a validade. |
+| Cadastrar Alimento | Quantidade inicial e local de armazenamento | `POST /api/estoques/`: `alimento`, `quantidade_atual`, `entrada`, `localizacao` | **Parcialmente disponível** em recurso separado após criar o alimento. `entrada` (data de entrada) é obrigatória; não equivale a validade. |
 | Desperdícios | Desperdício do mês em kg | `GET /api/desperdicios/`: `data`, `quantidade`, `estoque`; relação para `alimento.medida` | **Parcialmente calculável** por período e soma de quantidades homogêneas; kg normalizado requer medidas compatíveis/conversão. |
 | Desperdícios | Custo das perdas | Nenhum campo de custo | **SEM FONTE NA API**. |
 | Desperdícios | Meta mensal | Nenhum campo de meta | **SEM FONTE NA API**. |
@@ -215,12 +215,12 @@ relacionam ao estoque por `Desperdicio.estoque`.
 | Desperdícios | Histórico: custo estimado | Nenhum | **SEM FONTE NA API**. |
 | Desperdícios | Histórico: responsável | `Desperdicio.usuario` → `GET /api/usuarios/`: `nome` | **Disponível** ao combinar IDs; `usuario` é atribuído pelo backend no registro. |
 | Desperdícios | Filtros por período e motivo | Nenhum parâmetro de filtro | **SEM FONTE NA API**; filtragem local dos registros disponíveis é possível por data ou texto da descrição. |
-| Desperdícios | Registrar desperdício | `POST /api/desperdicios/`: `descricao`, `quantidade`, `data`, `estoque` | **Disponível**. O usuário é preenchido pelo servidor. A criação do registro não reduz automaticamente `Estoque.qntd_atual`. |
+| Desperdícios | Registrar desperdício | `POST /api/desperdicios/`: `descricao`, `quantidade`, `data`, `estoque` | **Disponível**. O usuário é preenchido pelo servidor. A criação do registro não reduz automaticamente `Estoque.quantidade_atual`. |
 | Itens Prioritários | Lista ordenada por validade | `GET /api/estoques/`: `validade` | **Calculável** no cliente; a ordenação fixa da API permanece por data de entrada. |
-| Itens Prioritários | Categoria, quantidade e perda estimada | Estoque/alimento fornecem `validade`, `categoria`, `qntd_atual` e `medida` | Categoria, quantidade e ordenação por validade são possíveis; perda estimada não pode ser obtida sem custo. |
+| Itens Prioritários | Categoria, quantidade e perda estimada | Estoque/alimento fornecem `validade`, `categoria`, `quantidade_atual` e `medida` | Categoria, quantidade e ordenação por validade são possíveis; perda estimada não pode ser obtida sem custo. |
 | Itens Prioritários | Sugestão de uso | Nenhum | **SEM FONTE NA API**. |
 | Itens Prioritários | Ação “usar no preparo” | Nenhum endpoint/ação de consumo | **SEM FONTE NA API**. |
-| Itens Prioritários | Ação “registrar baixa” | `PATCH /api/estoques/{id}/` permite alterar `qntd_atual`; `POST /api/desperdicios/` registra uma perda | Há operações genéricas, mas não uma ação própria. Registrar desperdício não decrementa o estoque automaticamente; para fazê-lo, a interface teria de atualizar estoque separadamente. |
+| Itens Prioritários | Ação “registrar baixa” | `PATCH /api/estoques/{id}/` permite alterar `quantidade_atual`; `POST /api/desperdicios/` registra uma perda | Há operações genéricas, mas não uma ação própria. Registrar desperdício não decrementa o estoque automaticamente; para fazê-lo, a interface teria de atualizar estoque separadamente. |
 | Relatórios | Economia gerada, desperdício evitado em kg, itens aproveitados, acurácia do estoque | Nenhum campo/endpoint para economia, itens aproveitados ou contagem de inventário | **SEM FONTE NA API**; quantidade de desperdício bruto tem somente a limitação de unidade descrita acima. |
 | Relatórios | Desperdício por semana (4 semanas) | `GET /api/desperdicios/`: `data`, `quantidade` | **Parcialmente calculável** agrupando por semana no frontend; não há agregação backend e a soma em kg depende de unidades compatíveis. |
 | Relatórios | Economia por categoria | Nenhum custo ou economia; categoria existe em alimento | **SEM FONTE NA API** para economia; categoria isolada não basta para calculá-la. |

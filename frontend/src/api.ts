@@ -25,7 +25,7 @@ export type FoodItem = {
 export type StockItem = {
   id: number;
   alimento: number;
-  qntd_atual: string;
+  quantidade_atual: string;
   entrada: string;
   saida: string | null;
   localizacao: string;

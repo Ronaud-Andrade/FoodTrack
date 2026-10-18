@@ -93,7 +93,7 @@ class Alimento(models.Model):
         return self.nome
 
 class Estoque(models.Model):
-    qntd_atual = models.DecimalField(max_digits=10, decimal_places=3)
+    quantidade_atual = models.DecimalField(max_digits=10, decimal_places=3)
     entrada = models.DateField()
     saida = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=150)
@@ -109,7 +109,7 @@ class Estoque(models.Model):
 
     def __str__(self):
         #Nome do alimento - quantidade atual
-        return f'{self.alimento.nome} - {self.qntd_atual}'
+        return f'{self.alimento.nome} - {self.quantidade_atual}'
 
 class Desperdicio(models.Model):
     descricao = models.CharField(max_length=300)

@@ -95,12 +95,14 @@ class CrudEscopoTests(APITestCase):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-estoque-list'), {
             'alimento': self.alimento_casa.pk,
-            'qntd_atual': 10,
+            'quantidade_atual': 10,
             'entrada': '2026-10-01',
             'localizacao': 'Câmara fria',
             'validade': '2026-10-30',
         }, format='json')
         self.assertEqual(resposta.status_code, 201)
+        self.assertIn('quantidade_atual', resposta.data)
+        self.assertNotIn('qntd_atual', resposta.data)
         self.assertEqual(resposta.data['validade'], '2026-10-30')
         self.assertNotIn('lote', resposta.data)
         self.assertNotIn('custo_unitario', resposta.data)
@@ -109,7 +111,7 @@ class CrudEscopoTests(APITestCase):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-estoque-list'), {
             'alimento': self.alimento_outra.pk,
-            'qntd_atual': 10,
+            'quantidade_atual': 10,
             'entrada': '2026-09-29',
             'localizacao': 'Câmara fria',
         }, format='json')
@@ -119,7 +121,7 @@ class CrudEscopoTests(APITestCase):
     def test_desperdicio_fica_com_o_usuario_logado_e_o_estoque_da_empresa(self):
         estoque = Estoque.objects.create(
             alimento=self.alimento_casa,
-            qntd_atual=8,
+            quantidade_atual=8,
             entrada='2026-09-01',
             localizacao='Despensa',
         )
