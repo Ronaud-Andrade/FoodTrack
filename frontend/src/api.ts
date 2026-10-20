@@ -12,7 +12,37 @@ export type Restaurant = {
   id: number;
   nome: string;
   cnpj: string;
+  dias_alerta_validade: number;
 };
+
+export const PERFIS = [
+  { value: "proprietario", label: "Proprietário" },
+  { value: "gerente", label: "Gerente" },
+  { value: "funcionario", label: "Funcionário" },
+] as const;
+
+export const MOTIVOS_DESPERDICIO = [
+  { value: "vencimento", label: "Vencimento" },
+  { value: "armazenamento_inadequado", label: "Armazenamento inadequado" },
+  { value: "excesso_de_compra", label: "Excesso de compra" },
+  { value: "excesso_de_producao", label: "Excesso de produção" },
+  { value: "erro_de_preparo", label: "Erro de preparo" },
+  { value: "outro", label: "Outro" },
+] as const;
+
+export function rotuloDe(opcoes: readonly { value: string; label: string }[], valor: string) {
+  return opcoes.find((opcao) => opcao.value === valor)?.label || valor;
+}
+
+export function mascararCnpj(valor: string) {
+  const digitos = valor.replace(/\D/g, "").slice(0, 14);
+  let mascarado = digitos.slice(0, 2);
+  if (digitos.length > 2) mascarado += `.${digitos.slice(2, 5)}`;
+  if (digitos.length > 5) mascarado += `.${digitos.slice(5, 8)}`;
+  if (digitos.length > 8) mascarado += `/${digitos.slice(8, 12)}`;
+  if (digitos.length > 12) mascarado += `-${digitos.slice(12, 14)}`;
+  return mascarado;
+}
 
 export type FoodItem = {
   id: number;
@@ -34,6 +64,7 @@ export type StockItem = {
 
 export type WasteRecord = {
   id: number;
+  motivo: string;
   descricao: string;
   quantidade: string;
   data: string;
@@ -154,7 +185,7 @@ export function updateStock(token: string, id: number, data: Partial<Omit<StockI
   });
 }
 
-export function createWaste(token: string, data: Pick<WasteRecord, "descricao" | "quantidade" | "data" | "estoque">) {
+export function createWaste(token: string, data: Pick<WasteRecord, "motivo" | "descricao" | "quantidade" | "data" | "estoque">) {
   return request<WasteRecord>("desperdicios/", token, {
     method: "POST",
     body: JSON.stringify(data),
@@ -168,7 +199,7 @@ export function createUser(token: string, data: Pick<User, "username" | "nome" |
   });
 }
 
-export function updateRestaurant(token: string, id: number, data: Pick<Restaurant, "nome" | "cnpj">) {
+export function updateRestaurant(token: string, id: number, data: Pick<Restaurant, "nome" | "cnpj" | "dias_alerta_validade">) {
   return request<Restaurant>(`restaurantes/${id}/`, token, {
     method: "PATCH",
     body: JSON.stringify(data),

@@ -29,7 +29,7 @@ class CrudEscopoTests(APITestCase):
             email='root@foodtrack.test',
             password='senha-forte-123',
             nome='Root',
-            perfil='admin',
+            perfil='proprietario',
         )
         self.alimento_casa = Alimento.objects.create(
             nome='Arroz',
@@ -137,6 +137,7 @@ class CrudEscopoTests(APITestCase):
         registro = Desperdicio.objects.get()
         self.assertEqual(registro.usuario, self.ana)
         self.assertEqual(registro.estoque, estoque)
+        self.assertEqual(registro.motivo, 'outro')
         self.assertEqual(resposta.data['usuario'], self.ana.pk)
 
     def test_usuario_comum_cadastra_colega_no_proprio_restaurante(self):
@@ -145,7 +146,7 @@ class CrudEscopoTests(APITestCase):
             'username': 'carla',
             'nome': 'Carla',
             'email': 'carla@casa.test',
-            'perfil': 'cozinha',
+            'perfil': 'funcionario',
             'password': 'senha-forte-123',
             'restaurante': self.outra.pk,
             'is_superuser': True,
@@ -153,6 +154,7 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(resposta.status_code, 201)
         carla = Usuario.objects.get(username='carla')
         self.assertEqual(carla.restaurante, self.casa)
+        self.assertEqual(carla.perfil, 'funcionario')
         self.assertFalse(carla.is_superuser)
         self.assertNotIn('password', resposta.data)
 
@@ -162,7 +164,7 @@ class CrudEscopoTests(APITestCase):
             'username': 'novo-root',
             'nome': 'Novo Root',
             'email': 'novo@foodtrack.test',
-            'perfil': 'admin',
+            'perfil': 'proprietario',
             'password': 'senha-forte-123',
             'is_superuser': True,
         }, format='json')
@@ -205,6 +207,36 @@ class CrudEscopoTests(APITestCase):
         self.assertIn('redoc', apidocs.content.decode().lower())
         self.assertIn('/api/schema/', swagger.content.decode())
         self.assertIn('/api/schema/', apidocs.content.decode())
+
+    def test_cnpj_e_gravado_com_mascara(self):
+        self.autenticar(self.root)
+        resposta = self.client.post(reverse('api-restaurante-list'), {
+            'nome': 'Casa da Máscara',
+            'cnpj': '33444555000166',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.data['cnpj'], '33.444.555/0001-66')
+        self.assertEqual(resposta.data['dias_alerta_validade'], 3)
+
+    def test_cnpj_invalido_e_perfil_fora_da_lista_sao_recusados(self):
+        self.autenticar(self.root)
+        cnpj = self.client.post(reverse('api-restaurante-list'), {
+            'nome': 'Sem Máscara Válida',
+            'cnpj': '123',
+        }, format='json')
+        self.assertEqual(cnpj.status_code, 400)
+        self.assertIn('cnpj', cnpj.data)
+
+        perfil = self.client.post(reverse('api-usuario-list'), {
+            'username': 'perfil-livre',
+            'nome': 'Perfil Livre',
+            'email': 'livre@foodtrack.test',
+            'perfil': 'cozinha',
+            'password': 'senha-forte-123',
+            'restaurante': self.casa.pk,
+        }, format='json')
+        self.assertEqual(perfil.status_code, 400)
+        self.assertIn('perfil', perfil.data)
 
     def test_token_autentica_a_requisicao(self):
         resposta = self.client.post(reverse('api-token'), {

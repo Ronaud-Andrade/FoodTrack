@@ -1,6 +1,28 @@
+import re
+
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+
+CNPJ_MASCARA = re.compile(r'^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$')
+MENSAGEM_CNPJ = 'Informe o CNPJ no formato 00.000.000/0000-00.'
+
+
+def mascarar_cnpj(valor):
+    # Aceita os 14 dígitos ou o texto já mascarado e devolve 00.000.000/0000-00.
+    if valor is None:
+        return valor
+    texto = str(valor).strip()
+    if CNPJ_MASCARA.fullmatch(texto):
+        return texto
+    digitos = re.sub(r'\D', '', texto)
+    if len(digitos) != 14:
+        return texto
+    return (
+        f'{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/'
+        f'{digitos[8:12]}-{digitos[12:14]}'
+    )
 
 # Este arquivo define os modelos do banco de dados do projeto.
 # Cada classe aqui representa uma tabela e os campos dela.
@@ -10,17 +32,36 @@ class Restaurante(models.Model):
     # Representa cada estabelecimento/empresa que usa o sistema.
     nome = models.CharField(max_length=150)
     cnpj = models.CharField(max_length=18, unique=True)
+    # Antecedência usada para destacar e alertar validades deste restaurante.
+    dias_alerta_validade = models.PositiveSmallIntegerField(
+        default=3,
+        validators=[MaxValueValidator(365)],
+    )
+
+    def clean(self):
+        self.cnpj = mascarar_cnpj(self.cnpj)
+        if not CNPJ_MASCARA.fullmatch(self.cnpj or ''):
+            raise ValidationError({'cnpj': MENSAGEM_CNPJ})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     # Define como o objeto será exibido no admin e em mensagens do sistema.
     def __str__(self):
         return self.nome
 
 class Usuario(AbstractUser):
+    class Perfil(models.TextChoices):
+        PROPRIETARIO = 'proprietario', 'Proprietário'
+        GERENTE = 'gerente', 'Gerente'
+        FUNCIONARIO = 'funcionario', 'Funcionário'
+
     # Extende o usuário padrão do Django para incluir dados específicos do sistema.
     # O Django já fornece username, password, is_staff, is_superuser, etc.
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
-    perfil = models.CharField(max_length=50)
+    perfil = models.CharField(max_length=20, choices=Perfil.choices)
     # O usuário nativo do Django guarda a senha com hash e já traz segurança básica.
 
     # null=True e blank=True são usados para permitir que o superusuário seja criado sem restaurante.
@@ -45,6 +86,11 @@ class Usuario(AbstractUser):
                 condition=models.Q(is_superuser=True) | models.Q(restaurante__isnull=False),
                 name='usuario_restaurante_nulo_apenas_superuser',
                 violation_error_message='Usuários que não são superusuários precisam estar atrelados a um restaurante.',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(perfil__in=['proprietario', 'gerente', 'funcionario']),
+                name='usuario_perfil_conhecido',
+                violation_error_message='O perfil precisa ser proprietário, gerente ou funcionário.',
             ),
         ]
 
@@ -126,8 +172,17 @@ class Estoque(models.Model):
 
 
 class Desperdicio(models.Model):
+    class Motivo(models.TextChoices):
+        VENCIMENTO = 'vencimento', 'Vencimento'
+        ARMAZENAMENTO = 'armazenamento_inadequado', 'Armazenamento inadequado'
+        EXCESSO_COMPRA = 'excesso_de_compra', 'Excesso de compra'
+        EXCESSO_PRODUCAO = 'excesso_de_producao', 'Excesso de produção'
+        ERRO_PREPARO = 'erro_de_preparo', 'Erro de preparo'
+        OUTRO = 'outro', 'Outro'
+
     # Guarda os registros de alimentos perdidos ou descartados.
-    descricao = models.CharField(max_length=300)
+    motivo = models.CharField(max_length=40, choices=Motivo.choices, default=Motivo.OUTRO)
+    descricao = models.CharField(max_length=300, blank=True, default='')
     quantidade = models.DecimalField(max_digits=10, decimal_places=3)
     data = models.DateField()
 
@@ -145,5 +200,21 @@ class Desperdicio(models.Model):
         related_name='desperdicio'
     )
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(motivo__in=[
+                    'vencimento',
+                    'armazenamento_inadequado',
+                    'excesso_de_compra',
+                    'excesso_de_producao',
+                    'erro_de_preparo',
+                    'outro',
+                ]),
+                name='desperdicio_motivo_conhecido',
+                violation_error_message='O motivo do desperdício não faz parte da lista permitida.',
+            ),
+        ]
+
     def __str__(self):
-        return f'{self.descricao} - {self.quantidade}'
+        return f'{self.get_motivo_display()} - {self.quantidade}'

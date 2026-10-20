@@ -6,7 +6,7 @@ from .models import (Usuario, Restaurante,
 # Register your models here.
 @admin.register(Desperdicio)
 class DesperdicioAdmin(admin.ModelAdmin):
-    list_display = ('descricao', 'quantidade', 'data', 'estoque', 'usuario')
+    list_display = ('motivo', 'descricao', 'quantidade', 'data', 'estoque', 'usuario')
 
 
 @admin.register(Estoque)
@@ -32,4 +32,8 @@ class AlimentoAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Usuario)
-admin.site.register(Restaurante)
+
+
+@admin.register(Restaurante)
+class RestauranteAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'cnpj', 'dias_alerta_validade')

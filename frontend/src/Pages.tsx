@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { formatQuantity, localDateOffset, localDateString, type FoodItem, type Restaurant, type StockItem, type User, type WasteRecord } from "./api";
+import { formatQuantity, localDateOffset, localDateString, mascararCnpj, MOTIVOS_DESPERDICIO, PERFIS, rotuloDe, type FoodItem, type Restaurant, type StockItem, type User, type WasteRecord } from "./api";
 
 type PageProps = {
   page: string;
@@ -15,9 +15,9 @@ type PageProps = {
   waste: WasteRecord[];
   saveFood: (data: { nome: string; categoria: string; medida: string; quantidade: string; validade: string; localizacao: string; restaurante?: number }) => Promise<void>;
   saveStock: (id: number, data: Partial<Omit<StockItem, "id">>) => Promise<void>;
-  saveWaste: (data: { descricao: string; quantidade: string; data: string; estoque: number }) => Promise<void>;
+  saveWaste: (data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => Promise<void>;
   saveUser: (data: { username: string; nome: string; email: string; perfil: string; password: string; restaurante?: number }) => Promise<void>;
-  saveRestaurant: (id: number, data: { nome: string; cnpj: string }) => Promise<void>;
+  saveRestaurant: (id: number, data: { nome: string; cnpj: string; dias_alerta_validade: number }) => Promise<void>;
 };
 
 type MiniIconName = "box" | "calendar" | "chart" | "check" | "download" | "filter" | "plus" | "printer" | "search" | "trash" | "users";
@@ -303,9 +303,9 @@ function WastePage({ openWaste, waste, stocks, foods, users }: PageProps) {
     const stock = resolveStock(id);
     return stock ? foods.find((food) => food.id === stock.alimento) : undefined;
   };
-  const csv = ["Data,Alimento,Quantidade,Descrição,Responsável", ...visibleRecords.map((record) => {
+  const csv = ["Data,Alimento,Quantidade,Motivo,Descrição,Responsável", ...visibleRecords.map((record) => {
     const food = resolveFood(record.estoque);
-    return [record.data, food?.nome || "Alimento não encontrado", `${formatQuantity(record.quantidade)} ${food?.medida || ""}`, record.descricao, resolveUser(record.usuario)]
+    return [record.data, food?.nome || "Alimento não encontrado", `${formatQuantity(record.quantidade)} ${food?.medida || ""}`, rotuloDe(MOTIVOS_DESPERDICIO, record.motivo), record.descricao, resolveUser(record.usuario)]
       .map((value) => `"${value.replace(/"/g, '""')}"`).join(",");
   })].join("\n");
   return (
@@ -314,7 +314,7 @@ function WastePage({ openWaste, waste, stocks, foods, users }: PageProps) {
       <div className="grid gap-4 sm:grid-cols-2"><Summary label="Registros no período" value={String(visibleRecords.length)} detail="Baixas registradas na API" icon="trash" /><Summary label="Registros totais" value={String(waste.length)} detail="Histórico disponível" icon="filter" /></div>
       <section className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)] sm:p-6">
         <div className="flex flex-col gap-4 border-b border-[var(--line)] pb-5 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="text-lg font-bold">Histórico de registros</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">Descrição e responsável vêm dos registros reais.</p></div><div className="flex flex-wrap gap-3"><select value={period} onChange={(e) => setPeriod(e.target.value)} className="field w-auto" aria-label="Filtrar período"><option>Hoje</option><option>Esta semana</option><option>Este mês</option><option>Todo o período</option></select><SecondaryButton onClick={() => downloadFile("desperdicios.csv", csv, "text/csv")} icon="download">Exportar</SecondaryButton></div></div>
-        <div className="overflow-x-auto"><table className="mt-2 w-full min-w-[700px] text-left text-sm"><thead><tr className="text-xs uppercase text-[var(--muted)]"><th className="py-4">Data</th><th>Alimento</th><th>Quantidade</th><th>Descrição</th><th>Responsável</th></tr></thead><tbody>{visibleRecords.map((record) => { const stock = resolveStock(record.estoque); const food = resolveFood(record.estoque); return <tr key={record.id} className="border-t border-[var(--line)]"><td className="py-4 text-[var(--muted-strong)]">{new Date(`${record.data}T00:00:00`).toLocaleDateString("pt-BR")}</td><td className="font-semibold">{food?.nome || `Alimento ${stock?.alimento ?? "não encontrado"}`}</td><td>{formatQuantity(record.quantidade)} {food?.medida}</td><td>{record.descricao}</td><td>{resolveUser(record.usuario)}</td></tr>; })}</tbody></table>{visibleRecords.length === 0 && <p className="py-10 text-center text-sm text-[var(--muted-strong)]">Nenhum registro nesse período.</p>}</div>
+        <div className="overflow-x-auto"><table className="mt-2 w-full min-w-[700px] text-left text-sm"><thead><tr className="text-xs uppercase text-[var(--muted)]"><th className="py-4">Data</th><th>Alimento</th><th>Quantidade</th><th>Motivo</th><th>Descrição</th><th>Responsável</th></tr></thead><tbody>{visibleRecords.map((record) => { const stock = resolveStock(record.estoque); const food = resolveFood(record.estoque); return <tr key={record.id} className="border-t border-[var(--line)]"><td className="py-4 text-[var(--muted-strong)]">{new Date(`${record.data}T00:00:00`).toLocaleDateString("pt-BR")}</td><td className="font-semibold">{food?.nome || `Alimento ${stock?.alimento ?? "não encontrado"}`}</td><td>{formatQuantity(record.quantidade)} {food?.medida}</td><td>{rotuloDe(MOTIVOS_DESPERDICIO, record.motivo)}</td><td>{record.descricao || "—"}</td><td>{resolveUser(record.usuario)}</td></tr>; })}</tbody></table>{visibleRecords.length === 0 && <p className="py-10 text-center text-sm text-[var(--muted-strong)]">Nenhum registro nesse período.</p>}</div>
       </section>
     </>
   );
@@ -373,8 +373,8 @@ function SettingsPage({ notify, user, users, restaurants, saveUser, saveRestaura
   const [error, setError] = useState("");
   const [restaurantId, setRestaurantId] = useState(user.restaurante || restaurants[0]?.id || 0);
   const restaurant = restaurants.find((item) => item.id === restaurantId);
-  const [restaurantForm, setRestaurantForm] = useState({ nome: restaurant?.nome || "", cnpj: restaurant?.cnpj || "" });
-  const [memberForm, setMemberForm] = useState({ nome: "", username: "", email: "", perfil: "", password: "", restaurante: String(user.restaurante || "") });
+  const [restaurantForm, setRestaurantForm] = useState({ nome: restaurant?.nome || "", cnpj: restaurant?.cnpj || "", dias_alerta_validade: restaurant?.dias_alerta_validade ?? 3 });
+  const [memberForm, setMemberForm] = useState({ nome: "", username: "", email: "", perfil: "funcionario", password: "", restaurante: String(user.restaurante || "") });
   const tabs = [["Restaurante", "Dados disponíveis na API"], ["Equipe", "Contas do restaurante"]];
 
   const submitRestaurant = async (event: FormEvent) => {
@@ -406,7 +406,7 @@ function SettingsPage({ notify, user, users, restaurants, saveUser, saveRestaura
         ...(user.is_superuser ? { restaurante: Number(memberForm.restaurante) } : {}),
       });
       setMemberModal(false);
-      setMemberForm({ nome: "", username: "", email: "", perfil: "", password: "", restaurante: String(user.restaurante || "") });
+      setMemberForm({ nome: "", username: "", email: "", perfil: "funcionario", password: "", restaurante: String(user.restaurante || "") });
       notify("Conta criada.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível criar a conta.");
@@ -422,24 +422,25 @@ function SettingsPage({ notify, user, users, restaurants, saveUser, saveRestaura
         <aside className="h-fit rounded-2xl border border-[var(--line)] bg-white p-2 shadow-[var(--shadow)]">
           <p className="px-3 pb-2 pt-3 text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Dados da conta</p>
           {tabs.map(([item, description]) => <button key={item} onClick={() => setTab(item)} className={`mb-1 min-h-[62px] w-full rounded-xl px-3 text-left transition ${tab === item ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "text-[var(--muted-strong)] hover:bg-[var(--surface-soft)]"}`}><strong className="block text-sm">{item}</strong><span className="mt-0.5 block text-xs font-normal text-[var(--muted)]">{description}</span></button>)}
-          <div className="mx-2 mt-3 border-t border-[var(--line)] px-1 py-4"><strong className="block text-sm">{user.nome}</strong><span className="text-xs text-[var(--muted)]">{user.perfil}</span></div>
+          <div className="mx-2 mt-3 border-t border-[var(--line)] px-1 py-4"><strong className="block text-sm">{user.nome}</strong><span className="text-xs text-[var(--muted)]">{rotuloDe(PERFIS, user.perfil)}</span></div>
         </aside>
 
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)] sm:p-7">
           {tab === "Restaurante" && <>
             <SettingsHeading title="Restaurante" description="Campos de nome e CNPJ lidos do registro associado à sua conta." />
-            {user.is_superuser && <Field label="Selecionar restaurante" required><select required value={restaurantId} onChange={(event) => { const id = Number(event.target.value); setRestaurantId(id); const selectedRestaurant = restaurants.find((item) => item.id === id); if (selectedRestaurant) setRestaurantForm({ nome: selectedRestaurant.nome, cnpj: selectedRestaurant.cnpj }); }} className="field mt-5">{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
+            {user.is_superuser && <Field label="Selecionar restaurante" required><select required value={restaurantId} onChange={(event) => { const id = Number(event.target.value); setRestaurantId(id); const selectedRestaurant = restaurants.find((item) => item.id === id); if (selectedRestaurant) setRestaurantForm({ nome: selectedRestaurant.nome, cnpj: selectedRestaurant.cnpj, dias_alerta_validade: selectedRestaurant.dias_alerta_validade }); }} className="field mt-5">{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
             {restaurant ? <form onSubmit={submitRestaurant} className="mt-6 grid gap-5 sm:grid-cols-2">
               <Field label="Nome" required><input required maxLength={150} readOnly={!user.is_superuser} value={restaurantForm.nome} onChange={(event) => setRestaurantForm((current) => ({ ...current, nome: event.target.value }))} className="field read-only:opacity-70" /></Field>
-              <Field label="CNPJ" required><input required maxLength={18} readOnly={!user.is_superuser} value={restaurantForm.cnpj} onChange={(event) => setRestaurantForm((current) => ({ ...current, cnpj: event.target.value }))} className="field read-only:opacity-70" /></Field>
+              <Field label="CNPJ" required><input required inputMode="numeric" maxLength={18} placeholder="00.000.000/0000-00" readOnly={!user.is_superuser} value={restaurantForm.cnpj} onChange={(event) => setRestaurantForm((current) => ({ ...current, cnpj: mascararCnpj(event.target.value) }))} className="field read-only:opacity-70" /></Field>
+              <Field label="Dias de alerta de validade" required><input required type="number" min={0} max={365} readOnly={!user.is_superuser} value={restaurantForm.dias_alerta_validade} onChange={(event) => setRestaurantForm((current) => ({ ...current, dias_alerta_validade: Number(event.target.value) }))} className="field read-only:opacity-70" /></Field>
               {user.is_superuser && <div className="sm:col-span-2"><PrimaryButton type="submit">{saving ? "Salvando…" : "Salvar restaurante"}</PrimaryButton></div>}
             </form> : <p className="mt-6 text-sm text-[var(--muted-strong)]">Esta conta de superusuário não está vinculada a um restaurante específico.</p>}
             {!user.is_superuser && <p className="mt-4 text-sm text-[var(--muted-strong)]">Somente superusuários podem alterar os dados do restaurante.</p>}
-            <p className="mt-6 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">Telefone, endereço, moeda e configurações de alertas não existem no modelo/API.</p>
+            <p className="mt-6 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">Telefone, endereço e moeda não existem no modelo.</p>
           </>}
           {tab === "Equipe" && <>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><SettingsHeading title="Usuários" description={`${users.length} contas retornadas pela API.`} /><PrimaryButton onClick={() => { setError(""); setMemberModal(true); }} icon="plus">Criar usuário</PrimaryButton></div>
-            <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{member.perfil}</span></div>)}</div>
+            <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{rotuloDe(PERFIS, member.perfil)}</span></div>)}</div>
             <p className="mt-5 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">A API permite criar contas, mas não oferece convites por e-mail nem edição/exclusão de usuários pelo fluxo desta tela.</p>
           </>}
           {error && <p role="alert" className="mt-5 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{error}</p>}
@@ -449,7 +450,7 @@ function SettingsPage({ notify, user, users, restaurants, saveUser, saveRestaura
         <Field label="Nome" required><input required maxLength={150} value={memberForm.nome} onChange={(event) => setMemberForm((current) => ({ ...current, nome: event.target.value }))} className="field" /></Field>
         <Field label="Usuário" required><input required maxLength={150} value={memberForm.username} onChange={(event) => setMemberForm((current) => ({ ...current, username: event.target.value }))} className="field" /></Field>
         <Field label="E-mail" required><input required type="email" value={memberForm.email} onChange={(event) => setMemberForm((current) => ({ ...current, email: event.target.value }))} className="field" /></Field>
-        <Field label="Perfil" required><input required maxLength={50} value={memberForm.perfil} onChange={(event) => setMemberForm((current) => ({ ...current, perfil: event.target.value }))} className="field" /></Field>
+        <Field label="Perfil" required><select required value={memberForm.perfil} onChange={(event) => setMemberForm((current) => ({ ...current, perfil: event.target.value }))} className="field">{PERFIS.map((perfil) => <option key={perfil.value} value={perfil.value}>{perfil.label}</option>)}</select></Field>
         <Field label="Senha inicial" required><input required minLength={8} type="password" value={memberForm.password} onChange={(event) => setMemberForm((current) => ({ ...current, password: event.target.value }))} className="field" /></Field>
         {user.is_superuser && <Field label="Restaurante" required><select required value={memberForm.restaurante} onChange={(event) => setMemberForm((current) => ({ ...current, restaurante: event.target.value }))} className="field"><option value="">Selecione</option>{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
         {error && <p role="alert" className="sm:col-span-2 text-sm text-[var(--danger)]">{error}</p>}

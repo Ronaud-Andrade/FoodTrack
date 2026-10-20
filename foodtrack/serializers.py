@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .escopo import filtrar_por_restaurante
-from .models import Alimento, Desperdicio, Estoque, Restaurante, Usuario
+from .models import CNPJ_MASCARA, MENSAGEM_CNPJ, Alimento, Desperdicio, Estoque, Restaurante, Usuario, mascarar_cnpj
 
 
 def usuario_da_requisicao(serializer):
@@ -20,7 +20,13 @@ def usuario_comum(user):
 class RestauranteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurante
-        fields = ['id', 'nome', 'cnpj']
+        fields = ['id', 'nome', 'cnpj', 'dias_alerta_validade']
+
+    def validate_cnpj(self, valor):
+        mascarado = mascarar_cnpj(valor)
+        if not CNPJ_MASCARA.fullmatch(mascarado or ''):
+            raise serializers.ValidationError(MENSAGEM_CNPJ)
+        return mascarado
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -152,7 +158,7 @@ class EstoqueSerializer(serializers.ModelSerializer):
 class DesperdicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Desperdicio
-        fields = ['id', 'descricao', 'quantidade', 'data', 'estoque', 'usuario']
+        fields = ['id', 'motivo', 'descricao', 'quantidade', 'data', 'estoque', 'usuario']
         extra_kwargs = {
             'usuario': {'read_only': True},
         }

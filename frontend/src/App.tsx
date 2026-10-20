@@ -12,6 +12,9 @@ import {
   login,
   localDateOffset,
   localDateString,
+  MOTIVOS_DESPERDICIO,
+  PERFIS,
+  rotuloDe,
   updateStock,
   type FoodItem,
   type Restaurant,
@@ -67,7 +70,7 @@ export default function App() {
   const [wasteModal, setWasteModal] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", descricao: "" });
+  const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", motivo: "outro", descricao: "" });
   const [wasteError, setWasteError] = useState("");
   const [token, setToken] = useState(() => window.localStorage.getItem("foodtrack-token") || "");
   const [username, setUsername] = useState(() => window.localStorage.getItem("foodtrack-username") || "");
@@ -189,7 +192,7 @@ export default function App() {
     }
   };
 
-  const submitWaste = async (data: { descricao: string; quantidade: string; data: string; estoque: number }) => {
+  const submitWaste = async (data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => {
     await createWaste(token, data);
     try {
       await refreshResources();
@@ -216,7 +219,7 @@ export default function App() {
     }
   };
 
-  const saveRestaurant = async (id: number, data: { nome: string; cnpj: string }) => {
+  const saveRestaurant = async (id: number, data: { nome: string; cnpj: string; dias_alerta_validade: number }) => {
     await updateRestaurant(token, id, data);
     try {
       await refreshResources();
@@ -363,7 +366,7 @@ export default function App() {
           </div>
           <button onClick={logout} className="flex min-h-11 items-center gap-3 text-left" aria-label="Sair da conta">
             <span className="grid size-10 place-items-center rounded-full border border-[var(--line)] bg-slate-100 text-xs font-bold">{user.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
-            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{user.perfil} · Sair</span></span>
+            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{rotuloDe(PERFIS, user.perfil)} · Sair</span></span>
           </button>
           </div>
         </header>
@@ -411,7 +414,7 @@ export default function App() {
                       <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--muted-strong)]"><span>{food.location}</span><span className="text-[var(--line-strong)]">•</span><span>{food.amount}</span></p>
                     </div>
                     <div className="flex flex-row items-center gap-3 sm:col-start-2 lg:col-start-auto lg:flex-col lg:items-stretch">
-                      <button onClick={() => { setWasteForm({ estoque: String(food.id), quantidade: "", descricao: "" }); setWasteError(""); setWasteModal(true); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-3 text-sm font-bold text-white">Registrar baixa</button>
+                      <button onClick={() => { setWasteForm({ estoque: String(food.id), quantidade: "", motivo: "outro", descricao: "" }); setWasteError(""); setWasteModal(true); }} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-3 text-sm font-bold text-white">Registrar baixa</button>
                     </div>
                   </article>
                 ))}
@@ -442,7 +445,7 @@ export default function App() {
             page={active}
             navigate={setActive}
             notify={notify}
-            openWaste={(stockId) => { setWasteForm({ estoque: stockId ? String(stockId) : "", quantidade: "", descricao: "" }); setWasteError(""); setWasteModal(true); }}
+            openWaste={(stockId) => { setWasteForm({ estoque: stockId ? String(stockId) : "", quantidade: "", motivo: "outro", descricao: "" }); setWasteError(""); setWasteModal(true); }}
             user={user}
             users={users}
             token={token}
@@ -465,7 +468,7 @@ export default function App() {
             event.preventDefault();
             setWasteError("");
             try {
-              await submitWaste({ descricao: wasteForm.descricao, quantidade: wasteForm.quantidade, data: localDateString(), estoque: Number(wasteForm.estoque) });
+              await submitWaste({ motivo: wasteForm.motivo, descricao: wasteForm.descricao, quantidade: wasteForm.quantidade, data: localDateString(), estoque: Number(wasteForm.estoque) });
               setWasteModal(false);
               notify("Desperdício registrado.");
             } catch (error) {
@@ -479,7 +482,8 @@ export default function App() {
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.quantidade_atual)} {food?.medida || ""})</option>; })}</select></label>
               <label><span className="field-label">Quantidade *</span><input required value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: event.target.value }))} type="number" min="0.001" step="0.001" className="field" placeholder="0,0" /></label>
-              <label><span className="field-label">Descrição *</span><input required maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Motivo ou detalhe da baixa" /></label>
+              <label><span className="field-label">Motivo *</span><select required value={wasteForm.motivo} onChange={(event) => setWasteForm((current) => ({ ...current, motivo: event.target.value }))} className="field">{MOTIVOS_DESPERDICIO.map((motivo) => <option key={motivo.value} value={motivo.value}>{motivo.label}</option>)}</select></label>
+              <label className="sm:col-span-2"><span className="field-label">Descrição</span><input maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Detalhe opcional da baixa" /></label>
             </div>
             {wasteError && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{wasteError}</p>}
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

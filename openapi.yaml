@@ -712,6 +712,8 @@ components:
         id:
           type: integer
           readOnly: true
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
           maxLength: 300
@@ -729,7 +731,6 @@ components:
           readOnly: true
       required:
       - data
-      - descricao
       - estoque
       - id
       - quantidade
@@ -737,9 +738,10 @@ components:
     DesperdicioRequest:
       type: object
       properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
-          minLength: 1
           maxLength: 300
         quantidade:
           type: string
@@ -752,7 +754,6 @@ components:
           type: integer
       required:
       - data
-      - descricao
       - estoque
       - quantidade
     Estoque:
@@ -834,6 +835,22 @@ components:
         * `un` - Unidade
         * `maço` - Maço
         * `caixa` - Caixa
+    MotivoEnum:
+      enum:
+      - vencimento
+      - armazenamento_inadequado
+      - excesso_de_compra
+      - excesso_de_producao
+      - erro_de_preparo
+      - outro
+      type: string
+      description: |-
+        * `vencimento` - Vencimento
+        * `armazenamento_inadequado` - Armazenamento inadequado
+        * `excesso_de_compra` - Excesso de compra
+        * `excesso_de_producao` - Excesso de produção
+        * `erro_de_preparo` - Erro de preparo
+        * `outro` - Outro
     PatchedAlimentoRequest:
       type: object
       properties:
@@ -852,9 +869,10 @@ components:
     PatchedDesperdicioRequest:
       type: object
       properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
-          minLength: 1
           maxLength: 300
         quantidade:
           type: string
@@ -900,6 +918,10 @@ components:
           type: string
           minLength: 1
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
     PatchedUsuarioRequest:
       type: object
       properties:
@@ -921,9 +943,7 @@ components:
           minLength: 1
           maxLength: 254
         perfil:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true
@@ -936,6 +956,16 @@ components:
           type: string
           writeOnly: true
           minLength: 1
+    PerfilEnum:
+      enum:
+      - proprietario
+      - gerente
+      - funcionario
+      type: string
+      description: |-
+        * `proprietario` - Proprietário
+        * `gerente` - Gerente
+        * `funcionario` - Funcionário
     Restaurante:
       type: object
       properties:
@@ -948,6 +978,10 @@ components:
         cnpj:
           type: string
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
       required:
       - cnpj
       - id
@@ -963,6 +997,10 @@ components:
           type: string
           minLength: 1
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
       required:
       - cnpj
       - nome
@@ -994,8 +1032,7 @@ components:
           format: email
           maxLength: 254
         perfil:
-          type: string
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true
@@ -1031,9 +1068,7 @@ components:
           minLength: 1
           maxLength: 254
         perfil:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true

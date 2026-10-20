@@ -92,7 +92,8 @@ criar, alterar ou excluir restaurantes.
 |---|---|---|---|
 | `id` | inteiro | Somente leitura | Obrigatório |
 | `nome` | string, até 150 caracteres | Obrigatório em criação e substituição | Sempre |
-| `cnpj` | string, até 18 caracteres, único | Obrigatório em criação e substituição | Sempre |
+| `cnpj` | string mascarada `00.000.000/0000-00`, única | Obrigatório. Dígitos sem máscara são gravados no formato mascarado | Sempre |
+| `dias_alerta_validade` | inteiro de 0 a 365 | Opcional; o padrão é 3 | Sempre |
 
 ### Usuários — `/api/usuarios/`
 
@@ -107,7 +108,7 @@ mesmo.
 | `username` | string, até 150 caracteres (`[\w.@+-]+`) | Obrigatório em criação e substituição | Sempre |
 | `nome` | string, até 150 caracteres | Obrigatório em criação e substituição | Sempre |
 | `email` | string de e-mail, até 254 caracteres, único | Obrigatório em criação e substituição | Sempre |
-| `perfil` | string, até 50 caracteres | Obrigatório em criação e substituição | Sempre |
+| `perfil` | enum: `proprietario`, `gerente`, `funcionario` | Obrigatório em criação e substituição | Sempre |
 | `restaurante` | inteiro ou `null` | Superusuário pode informar ou omitir; para usuário comum é preenchido com o restaurante autenticado. Um usuário não-superusuário precisa ter restaurante. | Sempre; `null` é possível para superusuário |
 | `is_superuser` | booleano | Opcional; usuário comum não pode defini-lo e a conta criada por ele fica como `false` | Sempre |
 | `password` | string | Obrigatório na criação; opcional na alteração. Gravado com hash. | Nunca (somente escrita) |
@@ -151,7 +152,8 @@ mantido na edição.
 | Campo | Tipo | Entrada / obrigatoriedade | Saída |
 |---|---|---|---|
 | `id` | inteiro | Somente leitura | Obrigatório |
-| `descricao` | string, até 300 caracteres | Obrigatório em criação e substituição | Sempre |
+| `motivo` | enum: `vencimento`, `armazenamento_inadequado`, `excesso_de_compra`, `excesso_de_producao`, `erro_de_preparo`, `outro` | Opcional; o padrão é `outro` | Sempre |
+| `descricao` | string, até 300 caracteres | Opcional; observação livre | Sempre |
 | `quantidade` | decimal | Obrigatório em criação e substituição | Sempre |
 | `data` | data (`YYYY-MM-DD`) | Obrigatório em criação e substituição | Sempre |
 | `estoque` | inteiro (ID de estoque) | Obrigatório em criação e substituição | Sempre |
@@ -236,7 +238,7 @@ relacionam ao estoque por `Desperdicio.estoque`.
 
 O modelo de estoque inclui `validade`, exposta também pela API. `medida` é uma
 escolha limitada às unidades `Kg`, `g`, `L`, `ml`, `un`, `maço` e `caixa`.
-Fornecedor, estoque mínimo, lote, custo unitário e motivo estruturado não fazem
+Fornecedor, estoque mínimo, lote e custo unitário não fazem
 parte do modelo lógico implementado.
 
 ## Pendências do backend
