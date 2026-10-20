@@ -35,7 +35,8 @@ superusuários.
 ### Regras de acesso
 
 - O padrão do DRF em `settings.py` exige autenticação (`IsAuthenticated`). A exceção
-  explícita é `POST /api/token/`. `GET /api/schema/` também é público.
+  explícita é `POST /api/token/`. `GET /api/schema/`, `GET /api/swagger/` e
+  `GET /api/docs/` também são públicos.
 - Nas rotas de recursos, além do login, `ExigeVinculo` exige que usuários comuns
   estejam vinculados a um restaurante. Superusuário pode não ter vínculo.
 - Usuário comum só consulta e altera os dados associados ao próprio restaurante.
@@ -161,9 +162,11 @@ mantido na edição.
 | Caminho | Métodos / acesso | Formato |
 |---|---|---|
 | `/api/schema/` | `GET`, público e sem autenticação | Esquema OpenAPI (usado para gerar o `openapi.yaml`) |
+| `/api/swagger/` | `GET`, público e sem autenticação | Interface Swagger UI |
+| `/api/docs/` | `GET`, público e sem autenticação | Documentação da API (ReDoc) |
 | `/admin/` | Interface administrativa do Django; fora da API REST | HTML do Django Admin |
 
-O schema OpenAPI exportável exclui `/api/schema/` e a administração Django. Não há
+O schema OpenAPI exportável exclui `/api/schema/`, `/api/swagger/`, `/api/docs/` e a administração Django. Não há
 outros recursos registrados além de restaurantes, usuários, alimentos, estoques e
 desperdícios.
 

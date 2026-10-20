@@ -193,6 +193,18 @@ class CrudEscopoTests(APITestCase):
         self.assertIn('/api/token/', corpo)
         self.assertIn('/api/alimentos/', corpo)
         self.assertIn('/api/desperdicios/{id}/', corpo)
+        self.assertNotIn('/api/swagger/', corpo)
+        self.assertNotIn('/api/docs/', corpo)
+
+    def test_swagger_e_apidocs_sao_publicos(self):
+        swagger = self.client.get(reverse('swagger'))
+        apidocs = self.client.get(reverse('apidocs'))
+        self.assertEqual(swagger.status_code, 200)
+        self.assertEqual(apidocs.status_code, 200)
+        self.assertIn('swagger-ui', swagger.content.decode())
+        self.assertIn('redoc', apidocs.content.decode().lower())
+        self.assertIn('/api/schema/', swagger.content.decode())
+        self.assertIn('/api/schema/', apidocs.content.decode())
 
     def test_token_autentica_a_requisicao(self):
         resposta = self.client.post(reverse('api-token'), {

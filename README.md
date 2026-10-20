@@ -102,7 +102,9 @@ FoodTrack/
 
 A API estará disponível em `http://127.0.0.1:8000/api/`. O schema OpenAPI pode ser
 consultado em `http://127.0.0.1:8000/api/schema/`; uma cópia está em
-[`openapi.yaml`](./openapi.yaml).
+[`openapi.yaml`](./openapi.yaml). A interface Swagger fica em
+`http://127.0.0.1:8000/api/swagger/` e a documentação em
+`http://127.0.0.1:8000/api/docs/`.
 
 ## Frontend
 
