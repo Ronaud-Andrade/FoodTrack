@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from .models import Alimento, Desperdicio, Estoque, Restaurante, Usuario
+from foodtrack.models import Alimento, Desperdicio, Estoque, Restaurante, Usuario
 
 
 class CrudEscopoTests(APITestCase):
@@ -204,3 +204,4 @@ class CrudEscopoTests(APITestCase):
         lista = self.client.get(reverse('api-alimento-list'))
         self.assertEqual(lista.status_code, 200)
         self.assertEqual(lista.data[0]['nome'], 'Arroz')
+

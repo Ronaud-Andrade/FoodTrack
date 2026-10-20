@@ -4,6 +4,25 @@ import django.core.validators
 from django.db import migrations, models
 
 
+def adicionar_validade_se_ausente(apps, schema_editor):
+    # A branch main também criou esta coluna. Em um banco que já aplicou
+    # 0005_estoque_validade, o ALTER TABLE não pode repetir o campo.
+    estoque = apps.get_model('foodtrack', 'Estoque')
+    conexao = schema_editor.connection
+    tabela = estoque._meta.db_table
+    with conexao.cursor() as cursor:
+        colunas = {
+            coluna.name
+            for coluna in conexao.introspection.get_table_description(cursor, tabela)
+        }
+        if 'validade' in colunas:
+            return
+        cursor.execute(
+            'ALTER TABLE %s ADD COLUMN %s date NULL'
+            % (conexao.ops.quote_name(tabela), conexao.ops.quote_name('validade'))
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -36,10 +55,20 @@ class Migration(migrations.Migration):
             name='lote',
             field=models.CharField(blank=True, default='', max_length=50),
         ),
-        migrations.AddField(
-            model_name='estoque',
-            name='validade',
-            field=models.DateField(blank=True, null=True),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='estoque',
+                    name='validade',
+                    field=models.DateField(blank=True, null=True),
+                ),
+            ],
+            database_operations=[
+                migrations.RunPython(
+                    adicionar_validade_se_ausente,
+                    migrations.RunPython.noop,
+                ),
+            ],
         ),
         migrations.AlterField(
             model_name='desperdicio',

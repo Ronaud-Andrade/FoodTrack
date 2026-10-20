@@ -14,6 +14,36 @@ O frontend autentica com token da API, carrega os recursos do restaurante e
 integra o cadastro de alimentos/estoque, a edição de estoque, os registros de
 desperdício, os relatórios calculáveis e a gestão de usuários/restaurantes.
 
+## Estrutura do projeto
+
+```text
+FoodTrack/
+├── config/
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py
+│   └── wsgi.py
+├── foodtrack/
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── api.py
+│   ├── urls.py
+│   ├── apps.py
+│   ├── escopo.py
+│   ├── migrations/
+│   ├── models.py
+│   ├── serializers.py
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_crud_escopo.py
+│       └── test_usabilidade.py
+├── frontend/
+├── manage.py
+├── requirements.txt
+└── README.md
+```
+
 ## Requisitos
 
 - Python 3.12 ou superior
@@ -207,6 +237,18 @@ O Vite informa no terminal a URL local da aplicação (por padrão,
 O projeto não está configurado para produção por padrão. Antes de implantá-lo,
 configure adequadamente `DEBUG`, `SECRET_KEY`, hosts permitidos, banco de dados e
 origens CORS para o ambiente de destino.
+
+## Testes Automatizados
+
+O projeto conta com suíte de testes dividida por preocupações em `foodtrack/tests/`, incluindo testes específicos para **Usabilidade** (ISO/IEC 25010):
+
+```bash
+# Executar todos os testes
+python manage.py test
+
+# Executar apenas a suíte de usabilidade
+python manage.py test foodtrack.tests.test_usabilidade
+```
 
 ## Licença
 
