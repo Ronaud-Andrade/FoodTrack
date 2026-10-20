@@ -29,7 +29,10 @@ FoodTrack/
 │   ├── migrations/
 │   ├── models.py
 │   ├── serializers.py
-│   └── tests.py
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_crud_escopo.py
+│       └── test_usabilidade.py
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -141,6 +144,18 @@ http://127.0.0.1:8000/admin/
 - A aplicação responde JSON. As telas HTML do sistema foram removidas.
 - O admin do Django continua disponível para a gestão inicial.
 - Para ambiente de produção, é recomendado ajustar `DEBUG`, `ALLOWED_HOSTS`, `SECRET_KEY` e outras configurações do Django.
+
+## Testes Automatizados
+
+O projeto conta com suíte de testes dividida por preocupações em `foodtrack/tests/`, incluindo testes específicos para **Usabilidade** (ISO/IEC 25010):
+
+```bash
+# Executar todos os testes
+python manage.py test
+
+# Executar apenas a suíte de usabilidade
+python manage.py test foodtrack.tests.test_usabilidade
+```
 
 ## Licença
 
