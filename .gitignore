@@ -1,4 +1,22 @@
+# Python
 .venv
-.env
 venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Ambiente e banco local
+.env
+db.sqlite3
+*.sqlite3
+
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Rascunho local
 src_atualizado/
