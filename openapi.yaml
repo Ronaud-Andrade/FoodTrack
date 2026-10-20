@@ -661,8 +661,7 @@ components:
           type: string
           maxLength: 60
         medida:
-          type: string
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
       required:
@@ -683,9 +682,7 @@ components:
           minLength: 1
           maxLength: 60
         medida:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
       required:
@@ -719,10 +716,9 @@ components:
           type: string
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -746,10 +742,9 @@ components:
           minLength: 1
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -768,11 +763,10 @@ components:
           readOnly: true
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -783,22 +777,25 @@ components:
         localizacao:
           type: string
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
       required:
       - alimento
       - entrada
       - id
       - localizacao
-      - qntd_atual
+      - quantidade_atual
     EstoqueRequest:
       type: object
       properties:
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -810,11 +807,33 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
       required:
       - alimento
       - entrada
       - localizacao
-      - qntd_atual
+      - quantidade_atual
+    MedidaEnum:
+      enum:
+      - Kg
+      - g
+      - L
+      - ml
+      - un
+      - maço
+      - caixa
+      type: string
+      description: |-
+        * `Kg` - Kg
+        * `g` - g
+        * `L` - L
+        * `ml` - ml
+        * `un` - Unidade
+        * `maço` - Maço
+        * `caixa` - Caixa
     PatchedAlimentoRequest:
       type: object
       properties:
@@ -827,9 +846,7 @@ components:
           minLength: 1
           maxLength: 60
         medida:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
     PatchedDesperdicioRequest:
@@ -840,10 +857,9 @@ components:
           minLength: 1
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -854,11 +870,10 @@ components:
       properties:
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -870,6 +885,10 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
     PatchedRestauranteRequest:
       type: object
       properties:

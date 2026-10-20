@@ -48,8 +48,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
         user = usuario_da_requisicao(self)
         # Quem não é superusuário não escolhe empresa nem promove outra conta.
         if usuario_comum(user):
-            self.fields.pop('restaurante', None)
-            self.fields.pop('is_superuser', None)
+            self.fields['restaurante'].read_only = True
+            self.fields['is_superuser'].read_only = True
             return
 
         self.fields['restaurante'].required = False
@@ -126,7 +126,15 @@ class AlimentoSerializer(serializers.ModelSerializer):
 class EstoqueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Estoque
-        fields = ['id', 'alimento', 'qntd_atual', 'entrada', 'saida', 'localizacao']
+        fields = [
+            'id',
+            'alimento',
+            'quantidade_atual',
+            'entrada',
+            'saida',
+            'localizacao',
+            'validade',
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

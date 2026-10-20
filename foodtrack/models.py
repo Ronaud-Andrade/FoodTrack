@@ -74,10 +74,22 @@ class Usuario(AbstractUser):
 
 
 class Alimento(models.Model):
+    class UnidadeMedida(models.TextChoices):
+        QUILOGRAMA = "Kg", "Kg"
+        GRAMA = "g", "g"
+        LITRO = "L", "L"
+        MILILITRO = "ml", "ml"
+        UNIDADE = "un", "Unidade"
+        MACO = "maço", "Maço"
+        CAIXA = "caixa", "Caixa"
+
     # Cada registro representa um produto/ingrediente cadastrado para um restaurante.
     nome = models.CharField(max_length=150)
     categoria = models.CharField(max_length=60)
-    medida = models.CharField(max_length=50)
+    medida = models.CharField(
+        max_length=10,
+        choices=UnidadeMedida.choices,
+    )
 
     restaurante = models.ForeignKey(
         Restaurante,
@@ -93,7 +105,7 @@ class Alimento(models.Model):
 
 class Estoque(models.Model):
     # Registra a quantidade atual de um alimento em um ponto de armazenamento.
-    qntd_atual = models.IntegerField()
+    quantidade_atual = models.DecimalField(max_digits=10, decimal_places=3)
     entrada = models.DateField()
     saida = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=150)
@@ -110,13 +122,13 @@ class Estoque(models.Model):
 
     def __str__(self):
         # Exibe o nome do alimento seguido da quantidade disponível.
-        return f'{self.alimento.nome} - {self.qntd_atual}'
+        return f'{self.alimento.nome} - {self.quantidade_atual}'
 
 
 class Desperdicio(models.Model):
     # Guarda os registros de alimentos perdidos ou descartados.
     descricao = models.CharField(max_length=300)
-    quantidade = models.IntegerField()
+    quantidade = models.DecimalField(max_digits=10, decimal_places=3)
     data = models.DateField()
 
     # Cada desperdício está ligado ao estoque relacionado ao item.

@@ -45,25 +45,25 @@ class UsabilidadeTests(APITestCase):
         self.alimento_a = Alimento.objects.create(
             nome='Farinha de Trigo',
             categoria='Secos',
-            medida='kg',
+            medida='Kg',
             restaurante=self.restaurante_a,
         )
         self.alimento_b = Alimento.objects.create(
             nome='Azeite de Oliva',
             categoria='Óleos',
-            medida='litro',
+            medida='L',
             restaurante=self.restaurante_b,
         )
 
         self.estoque_a = Estoque.objects.create(
             alimento=self.alimento_a,
-            qntd_atual=25,
+            quantidade_atual=25,
             entrada='2026-10-01',
             localizacao='Prateleira 2',
         )
         self.estoque_b = Estoque.objects.create(
             alimento=self.alimento_b,
-            qntd_atual=10,
+            quantidade_atual=10,
             entrada='2026-10-05',
             localizacao='Despensa B',
         )
@@ -85,7 +85,7 @@ class UsabilidadeTests(APITestCase):
 
         payload_invalido = {
             'categoria': 'Carnes',
-            'medida': 'kg',
+            'medida': 'Kg',
             # 'nome' foi omitido propositalmente
         }
 
@@ -178,7 +178,7 @@ class UsabilidadeTests(APITestCase):
         payload = {
             'nome': 'Molho de Tomate',
             'categoria': 'Molhos',
-            'medida': 'lata',
+            'medida': 'un',
         }
 
         resposta = self.client.post(

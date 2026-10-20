@@ -34,13 +34,13 @@ class CrudEscopoTests(APITestCase):
         self.alimento_casa = Alimento.objects.create(
             nome='Arroz',
             categoria='Grãos',
-            medida='kg',
+            medida='Kg',
             restaurante=self.casa,
         )
         self.alimento_outra = Alimento.objects.create(
             nome='Feijão',
             categoria='Grãos',
-            medida='kg',
+            medida='Kg',
             restaurante=self.outra,
         )
 
@@ -60,12 +60,20 @@ class CrudEscopoTests(APITestCase):
         nomes = [item['nome'] for item in resposta.data]
         self.assertEqual(nomes, ['Arroz'])
 
+    def test_usuario_comum_recebe_restaurante_no_serializer_sem_poder_altera_lo(self):
+        self.autenticar(self.ana)
+        resposta = self.client.get(reverse('api-usuario-list'))
+        self.assertEqual(resposta.status_code, 200)
+        ana = next(item for item in resposta.data if item['username'] == 'ana')
+        self.assertEqual(ana['restaurante'], self.casa.pk)
+        self.assertFalse(ana['is_superuser'])
+
     def test_cadastro_de_alimento_ignora_restaurante_de_outra_empresa(self):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-alimento-list'), {
             'nome': 'Tomate',
             'categoria': 'Hortaliça',
-            'medida': 'kg',
+            'medida': 'Kg',
             'restaurante': self.outra.pk,
         }, format='json')
         self.assertEqual(resposta.status_code, 201)
@@ -73,11 +81,37 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(tomate.restaurante, self.casa)
         self.assertEqual(resposta.data['restaurante'], self.casa.pk)
 
+    def test_medida_de_alimento_deve_ser_uma_opcao_do_enum(self):
+        self.autenticar(self.ana)
+        resposta = self.client.post(reverse('api-alimento-list'), {
+            'nome': 'Leite',
+            'categoria': 'Laticínios',
+            'medida': 'litros',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn('medida', resposta.data)
+
+    def test_estoque_expoe_validade_e_nao_expoe_campos_fora_do_diagrama(self):
+        self.autenticar(self.ana)
+        resposta = self.client.post(reverse('api-estoque-list'), {
+            'alimento': self.alimento_casa.pk,
+            'quantidade_atual': 10,
+            'entrada': '2026-10-01',
+            'localizacao': 'Câmara fria',
+            'validade': '2026-10-30',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 201)
+        self.assertIn('quantidade_atual', resposta.data)
+        self.assertNotIn('qntd_atual', resposta.data)
+        self.assertEqual(resposta.data['validade'], '2026-10-30')
+        self.assertNotIn('lote', resposta.data)
+        self.assertNotIn('custo_unitario', resposta.data)
+
     def test_usuario_comum_nao_cadastra_estoque_de_outro_restaurante(self):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-estoque-list'), {
             'alimento': self.alimento_outra.pk,
-            'qntd_atual': 10,
+            'quantidade_atual': 10,
             'entrada': '2026-09-29',
             'localizacao': 'Câmara fria',
         }, format='json')
@@ -87,7 +121,7 @@ class CrudEscopoTests(APITestCase):
     def test_desperdicio_fica_com_o_usuario_logado_e_o_estoque_da_empresa(self):
         estoque = Estoque.objects.create(
             alimento=self.alimento_casa,
-            qntd_atual=8,
+            quantidade_atual=8,
             entrada='2026-09-01',
             localizacao='Despensa',
         )

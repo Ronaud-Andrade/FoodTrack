@@ -4,8 +4,32 @@ from .models import (Usuario, Restaurante,
                       Alimento) 
 
 # Register your models here.
+@admin.register(Desperdicio)
+class DesperdicioAdmin(admin.ModelAdmin):
+    list_display = ('descricao', 'quantidade', 'data', 'estoque', 'usuario')
+
+
+@admin.register(Estoque)
+class EstoqueAdmin(admin.ModelAdmin):
+    list_display = (
+        'alimento',
+        'quantidade_atual',
+        'entrada',
+        'saida',
+        'localizacao',
+        'validade',
+    )
+
+
+@admin.register(Alimento)
+class AlimentoAdmin(admin.ModelAdmin):
+    list_display = (
+        'nome',
+        'categoria',
+        'medida',
+        'restaurante',
+    )
+
+
 admin.site.register(Usuario)
 admin.site.register(Restaurante)
-admin.site.register(Desperdicio)
-admin.site.register(Estoque)
-admin.site.register(Alimento)
