@@ -163,14 +163,23 @@ mantido na edição.
 
 | Caminho | Métodos / acesso | Formato |
 |---|---|---|
+| `/api/usuarios/me/` | `GET`, autenticado | Usuário logado, perfil e restaurante |
+| `/api/logout/` | `POST`, autenticado | Apaga o token da sessão |
+| `/api/estoques/proximos-vencimento/` | `GET`, autenticado. `dias` opcional, de 0 a 365 | Itens vencidos, que vencem hoje ou dentro da antecedência, com `situacao` e `dias_restantes` |
+| `/api/estoques/ordem-utilizacao/` | `GET`, autenticado | Estoque com quantidade maior que zero, do que vence primeiro para o que não tem validade |
+| `/api/alertas/validade/` | `GET`, autenticado. `dias` opcional | Mensagens de alerta de validade do restaurante |
+| `/api/desperdicios/motivos/` | `GET`, autenticado | Lista fechada de motivos |
+| `/api/desperdicios/` | `GET` aceita `data_inicio`, `data_fim`, `motivo`, `usuario` e `estoque` | Histórico filtrado. A gravação continua aberta ao funcionário |
+| `/api/relatorios/desperdicios/` | `GET`, autenticado. `data_inicio`, `data_fim` e `agrupar` (`motivo`, `alimento`, `categoria` ou `dia`) | Totais, quantidade e percentual de cada grupo |
+| `/api/restaurantes/me/configuracao/` | `GET` autenticado; `PATCH` só proprietário, gerente ou superusuário | `dias_alerta_validade` do próprio restaurante. Superusuário sem vínculo informa `?restaurante=` |
+| `/api/saude/` | `GET`, público | `{"status": "ok"}` |
 | `/api/schema/` | `GET`, público e sem autenticação | Esquema OpenAPI (usado para gerar o `openapi.yaml`) |
 | `/api/swagger/` | `GET`, público e sem autenticação | Interface Swagger UI |
 | `/api/docs/` | `GET`, público e sem autenticação | Documentação da API (ReDoc) |
 | `/admin/` | Interface administrativa do Django; fora da API REST | HTML do Django Admin |
 
-O schema OpenAPI exportável exclui `/api/schema/`, `/api/swagger/`, `/api/docs/` e a administração Django. Não há
-outros recursos registrados além de restaurantes, usuários, alimentos, estoques e
-desperdícios.
+O schema OpenAPI exportável exclui `/api/schema/`, `/api/swagger/`, `/api/docs/` e a administração Django.
+Proprietário e gerente gravam alimentos, estoques e usuários. Funcionário consulta esses recursos e registra desperdício.
 
 ## Mapeamento das telas
 
