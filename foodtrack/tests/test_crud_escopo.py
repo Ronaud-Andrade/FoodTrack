@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from .models import Alimento, Desperdicio, Estoque, Restaurante, Usuario
+from foodtrack.models import Alimento, Desperdicio, Estoque, Restaurante, Usuario
 
 
 class CrudEscopoTests(APITestCase):
@@ -29,18 +29,18 @@ class CrudEscopoTests(APITestCase):
             email='root@foodtrack.test',
             password='senha-forte-123',
             nome='Root',
-            perfil='admin',
+            perfil='proprietario',
         )
         self.alimento_casa = Alimento.objects.create(
             nome='Arroz',
             categoria='Grãos',
-            medida='kg',
+            medida='Kg',
             restaurante=self.casa,
         )
         self.alimento_outra = Alimento.objects.create(
             nome='Feijão',
             categoria='Grãos',
-            medida='kg',
+            medida='Kg',
             restaurante=self.outra,
         )
 
@@ -60,12 +60,20 @@ class CrudEscopoTests(APITestCase):
         nomes = [item['nome'] for item in resposta.data]
         self.assertEqual(nomes, ['Arroz'])
 
+    def test_usuario_comum_recebe_restaurante_no_serializer_sem_poder_altera_lo(self):
+        self.autenticar(self.ana)
+        resposta = self.client.get(reverse('api-usuario-list'))
+        self.assertEqual(resposta.status_code, 200)
+        ana = next(item for item in resposta.data if item['username'] == 'ana')
+        self.assertEqual(ana['restaurante'], self.casa.pk)
+        self.assertFalse(ana['is_superuser'])
+
     def test_cadastro_de_alimento_ignora_restaurante_de_outra_empresa(self):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-alimento-list'), {
             'nome': 'Tomate',
             'categoria': 'Hortaliça',
-            'medida': 'kg',
+            'medida': 'Kg',
             'restaurante': self.outra.pk,
         }, format='json')
         self.assertEqual(resposta.status_code, 201)
@@ -73,11 +81,37 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(tomate.restaurante, self.casa)
         self.assertEqual(resposta.data['restaurante'], self.casa.pk)
 
+    def test_medida_de_alimento_deve_ser_uma_opcao_do_enum(self):
+        self.autenticar(self.ana)
+        resposta = self.client.post(reverse('api-alimento-list'), {
+            'nome': 'Leite',
+            'categoria': 'Laticínios',
+            'medida': 'litros',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn('medida', resposta.data)
+
+    def test_estoque_expoe_validade_e_nao_expoe_campos_fora_do_diagrama(self):
+        self.autenticar(self.ana)
+        resposta = self.client.post(reverse('api-estoque-list'), {
+            'alimento': self.alimento_casa.pk,
+            'quantidade_atual': 10,
+            'entrada': '2026-10-01',
+            'localizacao': 'Câmara fria',
+            'validade': '2026-10-30',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 201)
+        self.assertIn('quantidade_atual', resposta.data)
+        self.assertNotIn('qntd_atual', resposta.data)
+        self.assertEqual(resposta.data['validade'], '2026-10-30')
+        self.assertNotIn('lote', resposta.data)
+        self.assertNotIn('custo_unitario', resposta.data)
+
     def test_usuario_comum_nao_cadastra_estoque_de_outro_restaurante(self):
         self.autenticar(self.ana)
         resposta = self.client.post(reverse('api-estoque-list'), {
             'alimento': self.alimento_outra.pk,
-            'qntd_atual': 10,
+            'quantidade_atual': 10,
             'entrada': '2026-09-29',
             'localizacao': 'Câmara fria',
         }, format='json')
@@ -87,7 +121,7 @@ class CrudEscopoTests(APITestCase):
     def test_desperdicio_fica_com_o_usuario_logado_e_o_estoque_da_empresa(self):
         estoque = Estoque.objects.create(
             alimento=self.alimento_casa,
-            qntd_atual=8,
+            quantidade_atual=8,
             entrada='2026-09-01',
             localizacao='Despensa',
         )
@@ -103,6 +137,7 @@ class CrudEscopoTests(APITestCase):
         registro = Desperdicio.objects.get()
         self.assertEqual(registro.usuario, self.ana)
         self.assertEqual(registro.estoque, estoque)
+        self.assertEqual(registro.motivo, 'outro')
         self.assertEqual(resposta.data['usuario'], self.ana.pk)
 
     def test_usuario_comum_cadastra_colega_no_proprio_restaurante(self):
@@ -111,7 +146,7 @@ class CrudEscopoTests(APITestCase):
             'username': 'carla',
             'nome': 'Carla',
             'email': 'carla@casa.test',
-            'perfil': 'cozinha',
+            'perfil': 'funcionario',
             'password': 'senha-forte-123',
             'restaurante': self.outra.pk,
             'is_superuser': True,
@@ -119,6 +154,7 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(resposta.status_code, 201)
         carla = Usuario.objects.get(username='carla')
         self.assertEqual(carla.restaurante, self.casa)
+        self.assertEqual(carla.perfil, 'funcionario')
         self.assertFalse(carla.is_superuser)
         self.assertNotIn('password', resposta.data)
 
@@ -128,7 +164,7 @@ class CrudEscopoTests(APITestCase):
             'username': 'novo-root',
             'nome': 'Novo Root',
             'email': 'novo@foodtrack.test',
-            'perfil': 'admin',
+            'perfil': 'proprietario',
             'password': 'senha-forte-123',
             'is_superuser': True,
         }, format='json')
@@ -159,6 +195,48 @@ class CrudEscopoTests(APITestCase):
         self.assertIn('/api/token/', corpo)
         self.assertIn('/api/alimentos/', corpo)
         self.assertIn('/api/desperdicios/{id}/', corpo)
+        self.assertNotIn('/api/swagger/', corpo)
+        self.assertNotIn('/api/docs/', corpo)
+
+    def test_swagger_e_apidocs_sao_publicos(self):
+        swagger = self.client.get(reverse('swagger'))
+        apidocs = self.client.get(reverse('apidocs'))
+        self.assertEqual(swagger.status_code, 200)
+        self.assertEqual(apidocs.status_code, 200)
+        self.assertIn('swagger-ui', swagger.content.decode())
+        self.assertIn('redoc', apidocs.content.decode().lower())
+        self.assertIn('/api/schema/', swagger.content.decode())
+        self.assertIn('/api/schema/', apidocs.content.decode())
+
+    def test_cnpj_e_gravado_com_mascara(self):
+        self.autenticar(self.root)
+        resposta = self.client.post(reverse('api-restaurante-list'), {
+            'nome': 'Casa da Máscara',
+            'cnpj': '33444555000166',
+        }, format='json')
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.data['cnpj'], '33.444.555/0001-66')
+        self.assertEqual(resposta.data['dias_alerta_validade'], 3)
+
+    def test_cnpj_invalido_e_perfil_fora_da_lista_sao_recusados(self):
+        self.autenticar(self.root)
+        cnpj = self.client.post(reverse('api-restaurante-list'), {
+            'nome': 'Sem Máscara Válida',
+            'cnpj': '123',
+        }, format='json')
+        self.assertEqual(cnpj.status_code, 400)
+        self.assertIn('cnpj', cnpj.data)
+
+        perfil = self.client.post(reverse('api-usuario-list'), {
+            'username': 'perfil-livre',
+            'nome': 'Perfil Livre',
+            'email': 'livre@foodtrack.test',
+            'perfil': 'cozinha',
+            'password': 'senha-forte-123',
+            'restaurante': self.casa.pk,
+        }, format='json')
+        self.assertEqual(perfil.status_code, 400)
+        self.assertIn('perfil', perfil.data)
 
     def test_token_autentica_a_requisicao(self):
         resposta = self.client.post(reverse('api-token'), {
@@ -170,3 +248,4 @@ class CrudEscopoTests(APITestCase):
         lista = self.client.get(reverse('api-alimento-list'))
         self.assertEqual(lista.status_code, 200)
         self.assertEqual(lista.data[0]['nome'], 'Arroz')
+

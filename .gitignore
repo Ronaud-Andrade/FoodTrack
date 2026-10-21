@@ -1,28 +1,22 @@
-# Ambiente
-.venv/
-venv/
-.env
-.env.*
-
 # Python
+.venv
+venv/
 __pycache__/
 *.py[cod]
-*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Banco local do Django
+# Ambiente e banco local
+.env
 db.sqlite3
-db.sqlite3-journal
 *.sqlite3
 
-# Arquivos gerados
-media/
-staticfiles/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+# Frontend
+node_modules/
+dist/
+.vite/
 
-# Sistema
-.DS_Store
-Thumbs.db
+# Rascunho local
+src_atualizado/

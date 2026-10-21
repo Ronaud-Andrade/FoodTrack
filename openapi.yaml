@@ -6,6 +6,27 @@ info:
     Usuário comum só acessa o próprio restaurante. Superusuário administra todas as
     empresas.'
 paths:
+  /api/alertas/validade/:
+    get:
+      operationId: alertas_validade_list
+      parameters:
+      - in: query
+        name: dias
+        schema:
+          type: integer
+      tags:
+      - alertas
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlertaValidade'
+          description: ''
   /api/alimentos/:
     get:
       operationId: alimentos_list
@@ -252,6 +273,22 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/desperdicios/motivos/:
+    get:
+      operationId: desperdicios_motivos_list
+      tags:
+      - desperdicios
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MotivoOpcao'
+          description: ''
   /api/estoques/:
     get:
       operationId: estoques_list
@@ -375,6 +412,83 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/estoques/ordem-utilizacao/:
+    get:
+      operationId: estoques_ordem_utilizacao_retrieve
+      tags:
+      - estoques
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estoque'
+          description: ''
+  /api/estoques/proximos-vencimento/:
+    get:
+      operationId: estoques_proximos_vencimento_retrieve
+      parameters:
+      - in: query
+        name: dias
+        schema:
+          type: integer
+        description: Substitui os dias de alerta do restaurante.
+      tags:
+      - estoques
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estoque'
+          description: ''
+  /api/logout/:
+    post:
+      operationId: logout_create
+      description: Apaga o token de quem está autenticado.
+      tags:
+      - logout
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/relatorios/desperdicios/:
+    get:
+      operationId: relatorios_desperdicios_retrieve
+      parameters:
+      - in: query
+        name: agrupar
+        schema:
+          type: string
+          enum:
+          - alimento
+          - categoria
+          - dia
+          - motivo
+      - in: query
+        name: data_fim
+        schema:
+          type: string
+      - in: query
+        name: data_inicio
+        schema:
+          type: string
+      tags:
+      - relatorios
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelatorioDesperdicio'
+          description: ''
   /api/restaurantes/:
     get:
       operationId: restaurantes_list
@@ -498,6 +612,50 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/restaurantes/me/configuracao/:
+    get:
+      operationId: restaurantes_me_configuracao_retrieve
+      tags:
+      - restaurantes
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracaoRestaurante'
+          description: ''
+    patch:
+      operationId: restaurantes_me_configuracao_partial_update
+      tags:
+      - restaurantes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedConfiguracaoRestauranteRequest'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfiguracaoRestaurante'
+          description: ''
+  /api/saude/:
+    get:
+      operationId: saude_retrieve
+      tags:
+      - saude
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Saude'
+          description: ''
   /api/token/:
     post:
       operationId: token_create
@@ -646,8 +804,53 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/usuarios/me/:
+    get:
+      operationId: usuarios_me_retrieve
+      tags:
+      - usuarios
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+          description: ''
 components:
   schemas:
+    AlertaValidade:
+      type: object
+      properties:
+        situacao:
+          type: string
+        mensagem:
+          type: string
+        dias_restantes:
+          type: integer
+        estoque:
+          type: integer
+        alimento:
+          type: string
+        validade:
+          type: string
+          format: date
+        localizacao:
+          type: string
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
+      required:
+      - alimento
+      - dias_restantes
+      - estoque
+      - localizacao
+      - mensagem
+      - quantidade_atual
+      - situacao
+      - validade
     Alimento:
       type: object
       properties:
@@ -661,8 +864,7 @@ components:
           type: string
           maxLength: 60
         medida:
-          type: string
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
       required:
@@ -683,9 +885,7 @@ components:
           minLength: 1
           maxLength: 60
         medida:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
       required:
@@ -709,20 +909,37 @@ components:
       required:
       - password
       - username
+    ConfiguracaoRestaurante:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          readOnly: true
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
+      required:
+      - id
+      - nome
     Desperdicio:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -733,7 +950,6 @@ components:
           readOnly: true
       required:
       - data
-      - descricao
       - estoque
       - id
       - quantidade
@@ -741,15 +957,15 @@ components:
     DesperdicioRequest:
       type: object
       properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
-          minLength: 1
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -757,7 +973,6 @@ components:
           type: integer
       required:
       - data
-      - descricao
       - estoque
       - quantidade
     Estoque:
@@ -768,11 +983,10 @@ components:
           readOnly: true
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -783,22 +997,25 @@ components:
         localizacao:
           type: string
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
       required:
       - alimento
       - entrada
       - id
       - localizacao
-      - qntd_atual
+      - quantidade_atual
     EstoqueRequest:
       type: object
       properties:
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -810,11 +1027,78 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
       required:
       - alimento
       - entrada
       - localizacao
-      - qntd_atual
+      - quantidade_atual
+    GrupoRelatorio:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        registros:
+          type: integer
+        quantidade:
+          type: string
+        percentual:
+          type: string
+      required:
+      - chave
+      - percentual
+      - quantidade
+      - registros
+      - rotulo
+    MedidaEnum:
+      enum:
+      - Kg
+      - g
+      - L
+      - ml
+      - un
+      - maço
+      - caixa
+      type: string
+      description: |-
+        * `Kg` - Kg
+        * `g` - g
+        * `L` - L
+        * `ml` - ml
+        * `un` - Unidade
+        * `maço` - Maço
+        * `caixa` - Caixa
+    MotivoEnum:
+      enum:
+      - vencimento
+      - armazenamento_inadequado
+      - excesso_de_compra
+      - excesso_de_producao
+      - erro_de_preparo
+      - outro
+      type: string
+      description: |-
+        * `vencimento` - Vencimento
+        * `armazenamento_inadequado` - Armazenamento inadequado
+        * `excesso_de_compra` - Excesso de compra
+        * `excesso_de_producao` - Excesso de produção
+        * `erro_de_preparo` - Erro de preparo
+        * `outro` - Outro
+    MotivoOpcao:
+      type: object
+      properties:
+        valor:
+          type: string
+        rotulo:
+          type: string
+      required:
+      - rotulo
+      - valor
     PatchedAlimentoRequest:
       type: object
       properties:
@@ -827,23 +1111,28 @@ components:
           minLength: 1
           maxLength: 60
         medida:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/MedidaEnum'
         restaurante:
           type: integer
+    PatchedConfiguracaoRestauranteRequest:
+      type: object
+      properties:
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
     PatchedDesperdicioRequest:
       type: object
       properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
-          minLength: 1
           maxLength: 300
         quantidade:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         data:
           type: string
           format: date
@@ -854,11 +1143,10 @@ components:
       properties:
         alimento:
           type: integer
-        qntd_atual:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+        quantidade_atual:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
         entrada:
           type: string
           format: date
@@ -870,6 +1158,10 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        validade:
+          type: string
+          format: date
+          nullable: true
     PatchedRestauranteRequest:
       type: object
       properties:
@@ -881,6 +1173,10 @@ components:
           type: string
           minLength: 1
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
     PatchedUsuarioRequest:
       type: object
       properties:
@@ -902,9 +1198,7 @@ components:
           minLength: 1
           maxLength: 254
         perfil:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true
@@ -917,6 +1211,44 @@ components:
           type: string
           writeOnly: true
           minLength: 1
+    PerfilEnum:
+      enum:
+      - proprietario
+      - gerente
+      - funcionario
+      type: string
+      description: |-
+        * `proprietario` - Proprietário
+        * `gerente` - Gerente
+        * `funcionario` - Funcionário
+    RelatorioDesperdicio:
+      type: object
+      properties:
+        data_inicio:
+          type: string
+          format: date
+          nullable: true
+        data_fim:
+          type: string
+          format: date
+          nullable: true
+        agrupar:
+          type: string
+        total_registros:
+          type: integer
+        quantidade_total:
+          type: string
+        grupos:
+          type: array
+          items:
+            $ref: '#/components/schemas/GrupoRelatorio'
+      required:
+      - agrupar
+      - data_fim
+      - data_inicio
+      - grupos
+      - quantidade_total
+      - total_registros
     Restaurante:
       type: object
       properties:
@@ -929,6 +1261,10 @@ components:
         cnpj:
           type: string
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
       required:
       - cnpj
       - id
@@ -944,9 +1280,20 @@ components:
           type: string
           minLength: 1
           maxLength: 18
+        dias_alerta_validade:
+          type: integer
+          maximum: 365
+          minimum: 0
       required:
       - cnpj
       - nome
+    Saude:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     TokenResposta:
       type: object
       properties:
@@ -975,8 +1322,7 @@ components:
           format: email
           maxLength: 254
         perfil:
-          type: string
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true
@@ -1012,9 +1358,7 @@ components:
           minLength: 1
           maxLength: 254
         perfil:
-          type: string
-          minLength: 1
-          maxLength: 50
+          $ref: '#/components/schemas/PerfilEnum'
         restaurante:
           type: integer
           nullable: true

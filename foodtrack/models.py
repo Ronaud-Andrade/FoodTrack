@@ -1,25 +1,71 @@
+import re
+
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-# Create your models here.
+CNPJ_MASCARA = re.compile(r'^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$')
+MENSAGEM_CNPJ = 'Informe o CNPJ no formato 00.000.000/0000-00.'
+
+
+def mascarar_cnpj(valor):
+    # Aceita os 14 dígitos ou o texto já mascarado e devolve 00.000.000/0000-00.
+    if valor is None:
+        return valor
+    texto = str(valor).strip()
+    if CNPJ_MASCARA.fullmatch(texto):
+        return texto
+    digitos = re.sub(r'\D', '', texto)
+    if len(digitos) != 14:
+        return texto
+    return (
+        f'{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/'
+        f'{digitos[8:12]}-{digitos[12:14]}'
+    )
+
+# Este arquivo define os modelos do banco de dados do projeto.
+# Cada classe aqui representa uma tabela e os campos dela.
+# O Django usa essas classes para criar/migrar o schema do banco automaticamente.
+
 class Restaurante(models.Model):
+    # Representa cada estabelecimento/empresa que usa o sistema.
     nome = models.CharField(max_length=150)
     cnpj = models.CharField(max_length=18, unique=True)
+    # Antecedência usada para destacar e alertar validades deste restaurante.
+    dias_alerta_validade = models.PositiveSmallIntegerField(
+        default=3,
+        validators=[MaxValueValidator(365)],
+    )
 
-    #Definir o nome do objeto
+    def clean(self):
+        self.cnpj = mascarar_cnpj(self.cnpj)
+        if not CNPJ_MASCARA.fullmatch(self.cnpj or ''):
+            raise ValidationError({'cnpj': MENSAGEM_CNPJ})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    # Define como o objeto será exibido no admin e em mensagens do sistema.
     def __str__(self):
         return self.nome
 
-class Usuario(AbstractUser): #Alterando o models do user nativo
+class Usuario(AbstractUser):
+    class Perfil(models.TextChoices):
+        PROPRIETARIO = 'proprietario', 'Proprietário'
+        GERENTE = 'gerente', 'Gerente'
+        FUNCIONARIO = 'funcionario', 'Funcionário'
 
+    # Extende o usuário padrão do Django para incluir dados específicos do sistema.
+    # O Django já fornece username, password, is_staff, is_superuser, etc.
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
-    perfil = models.CharField(max_length=50)
-    #O user nativo do django possui password com hash
+    perfil = models.CharField(max_length=20, choices=Perfil.choices)
+    # O usuário nativo do Django guarda a senha com hash e já traz segurança básica.
 
-    # null=True e blank=True ficam só para o createsuperuser, que não pede restaurante.
-    # Usuário comum não pode gravar sem restaurante: validar_restaurante() e a constraint barram isso.
+    # null=True e blank=True são usados para permitir que o superusuário seja criado sem restaurante.
+    # Usuários comuns devem estar vinculados a um restaurante; isso é validado em clean() e save().
     restaurante = models.ForeignKey(
         Restaurante,
         on_delete=models.CASCADE,
@@ -29,91 +75,146 @@ class Usuario(AbstractUser): #Alterando o models do user nativo
     )
 
     class Meta:
-        # Mantém o rótulo padrão do AbstractUser.
+        # Mantém o rótulo padrão do AbstractUser para o painel administrativo.
         verbose_name = 'user'
         verbose_name_plural = 'users'
         constraints = [
-            # A mesma regra no banco, para valer também em caminhos que não chamam save()
-            # (por exemplo, QuerySet.update). Restaurante nulo só é aceito se is_superuser=True.
+            # Restrição no banco para garantir integridade mesmo quando os dados forem atualizados
+            # por caminhos que não passam pelo método save(), como QuerySet.update().
+            # Só é permitido restaurante nulo para superusuários.
             models.CheckConstraint(
                 condition=models.Q(is_superuser=True) | models.Q(restaurante__isnull=False),
                 name='usuario_restaurante_nulo_apenas_superuser',
                 violation_error_message='Usuários que não são superusuários precisam estar atrelados a um restaurante.',
             ),
+            models.CheckConstraint(
+                condition=models.Q(perfil__in=['proprietario', 'gerente', 'funcionario']),
+                name='usuario_perfil_conhecido',
+                violation_error_message='O perfil precisa ser proprietário, gerente ou funcionário.',
+            ),
         ]
 
     def clean(self):
-        # Formulários (admin e ModelForm) passam por aqui antes de gravar.
+        # Este método é chamado por formulários e pelo admin antes de salvar.
+        # Ele garante que regras de negócio sejam validadas antes do registro.
         super().clean()
         self.validar_restaurante()
 
     def validar_restaurante(self):
-        # Superusuário pode ficar sem restaurante.
-        # Qualquer outro usuário precisa da chave preenchida.
+        # Superusuário pode existir sem restaurante.
+        # Qualquer usuário normal precisa ter um restaurante associado.
         if not self.is_superuser and self.restaurante_id is None:
             raise ValidationError({
                 'restaurante': 'Usuários que não são superusuários precisam estar atrelados a um restaurante.',
             })
 
     def save(self, *args, **kwargs):
-        # createsuperuser e Usuario.objects.create() não chamam clean().
-        # A checagem aqui cobre esses caminhos antes de gravar.
+        # create_superuser e alguns fluxos de criação podem ignorar o método clean().
+        # Então a validação também acontece aqui para evitar inconsistência no banco.
         self.validar_restaurante()
         super().save(*args, **kwargs)
 
     def __str__(self):
+        # Exibe o nome de usuário no painel e em logs.
         return self.username
-    
+
 
 class Alimento(models.Model):
+    class UnidadeMedida(models.TextChoices):
+        QUILOGRAMA = "Kg", "Kg"
+        GRAMA = "g", "g"
+        LITRO = "L", "L"
+        MILILITRO = "ml", "ml"
+        UNIDADE = "un", "Unidade"
+        MACO = "maço", "Maço"
+        CAIXA = "caixa", "Caixa"
+
+    # Cada registro representa um produto/ingrediente cadastrado para um restaurante.
     nome = models.CharField(max_length=150)
     categoria = models.CharField(max_length=60)
-    medida = models.CharField(max_length=50)
+    medida = models.CharField(
+        max_length=10,
+        choices=UnidadeMedida.choices,
+    )
 
     restaurante = models.ForeignKey(
         Restaurante,
         on_delete=models.CASCADE,
-        #Cria um atalho reverso para acessar o objeto de alimentos por meio de restaurante
+        # Cria um acesso reverso para encontrar todos os alimentos de um restaurante.
+        # Exemplo: restaurante.alimentos.all()
         related_name='alimentos'
     )
 
     def __str__(self):
         return self.nome
 
+
 class Estoque(models.Model):
-    qntd_atual = models.IntegerField()
+    # Registra a quantidade atual de um alimento em um ponto de armazenamento.
+    quantidade_atual = models.DecimalField(max_digits=10, decimal_places=3)
     entrada = models.DateField()
     saida = models.DateField(null=True, blank=True)
     localizacao = models.CharField(max_length=150)
+    validade = models.DateField(null=True, blank=True)
 
-    #Chave de Alimento
+    # Relacionamento com o alimento: um estoque pertence a um único alimento.
     alimento = models.ForeignKey(
         Alimento,
         on_delete=models.CASCADE,
-        #Cria um atalho reverso para acessar o objeto de estoque por meio de alimentos
-        related_name='estoques' 
+        # Permite acessar todos os registros de estoque de um alimento.
+        # Exemplo: alimento.estoques.all()
+        related_name='estoques'
     )
 
     def __str__(self):
-        #Nome do alimento - quantidade atual
-        return f'{self.alimento.nome} - {self.qntd_atual}'
+        # Exibe o nome do alimento seguido da quantidade disponível.
+        return f'{self.alimento.nome} - {self.quantidade_atual}'
+
 
 class Desperdicio(models.Model):
-    descricao = models.CharField(max_length=300)
-    quantidade = models.IntegerField()
+    class Motivo(models.TextChoices):
+        VENCIMENTO = 'vencimento', 'Vencimento'
+        ARMAZENAMENTO = 'armazenamento_inadequado', 'Armazenamento inadequado'
+        EXCESSO_COMPRA = 'excesso_de_compra', 'Excesso de compra'
+        EXCESSO_PRODUCAO = 'excesso_de_producao', 'Excesso de produção'
+        ERRO_PREPARO = 'erro_de_preparo', 'Erro de preparo'
+        OUTRO = 'outro', 'Outro'
+
+    # Guarda os registros de alimentos perdidos ou descartados.
+    motivo = models.CharField(max_length=40, choices=Motivo.choices, default=Motivo.OUTRO)
+    descricao = models.CharField(max_length=300, blank=True, default='')
+    quantidade = models.DecimalField(max_digits=10, decimal_places=3)
     data = models.DateField()
 
+    # Cada desperdício está ligado ao estoque relacionado ao item.
     estoque = models.ForeignKey(
         Estoque,
         on_delete=models.CASCADE,
         related_name='desperdicio'
     )
 
+    # Também registra quem fez o registro, para auditoria e controle.
     usuario = models.ForeignKey(
         Usuario,
         on_delete=models.CASCADE,
-        related_name="desperdicio"
+        related_name='desperdicio'
     )
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(motivo__in=[
+                    'vencimento',
+                    'armazenamento_inadequado',
+                    'excesso_de_compra',
+                    'excesso_de_producao',
+                    'erro_de_preparo',
+                    'outro',
+                ]),
+                name='desperdicio_motivo_conhecido',
+                violation_error_message='O motivo do desperdício não faz parte da lista permitida.',
+            ),
+        ]
+
     def __str__(self):
-        return f'{self.descricao} - {self.quantidade}'
+        return f'{self.get_motivo_display()} - {self.quantidade}'
