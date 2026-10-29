@@ -1,0 +1,17 @@
+type LoadingPageProps = {
+  loading: boolean;
+  loadError: string;
+  onLogout: () => void;
+};
+
+export default function LoadingPage({ loading, loadError, onLogout }: LoadingPageProps) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[var(--canvas)] p-6">
+      <section className="max-w-xl rounded-2xl border border-[var(--line)] bg-white p-8 text-center">
+        <h1 className="text-xl font-bold">{loading ? "Carregando dados do restaurante…" : "Não foi possível abrir sua conta"}</h1>
+        {loadError && <p role="alert" className="mt-3 text-sm text-[var(--danger)]">{loadError}</p>}
+        {!loading && <button onClick={onLogout} className="mt-5 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-white">Voltar ao login</button>}
+      </section>
+    </main>
+  );
+}

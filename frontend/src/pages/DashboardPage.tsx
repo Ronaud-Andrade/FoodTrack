@@ -1,0 +1,115 @@
+import type { ReactNode } from "react";
+import { Icon, type IconName } from "./ui";
+import type { ExpiringFood } from "./types";
+
+type DashboardPageProps = {
+  foodsExpiringToday: ExpiringFood[];
+  expiringSoonCount: number;
+  expiredCount: number;
+  wasteThisMonth: number;
+  foodCount: number;
+  stockCount: number;
+  stocksWithoutValidity: number;
+  categoryCount: number;
+  navigate: (page: string) => void;
+  onRegisterWaste: (stockId: number) => void;
+};
+
+export default function DashboardPage({
+  foodsExpiringToday,
+  expiringSoonCount,
+  expiredCount,
+  wasteThisMonth,
+  foodCount,
+  stockCount,
+  stocksWithoutValidity,
+  categoryCount,
+  navigate,
+  onRegisterWaste,
+}: DashboardPageProps) {
+  return (
+    <>
+      <section>
+        <div>
+          <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]"><span className="size-2 rounded-full bg-[var(--success)]" /> Estoque do restaurante <span className="text-[var(--line-strong)]">•</span><span className="text-[var(--muted-strong)]">{new Date().toLocaleDateString("pt-BR")}</span></p>
+          <h1 className="text-3xl font-bold tracking-[-0.04em] sm:text-[2rem]">Painel Operacional da Cozinha</h1>
+        </div>
+      </section>
+
+      {expiringSoonCount > 0 && <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm lg:flex-row lg:items-center">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[var(--warning-border)] bg-white/50 text-[var(--warning)]"><Icon name="alert" size={20} /></span>
+        <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: {expiringSoonCount} estoques vencem nos próximos 3 dias.</strong> Consulte a validade e priorize esses itens.</p>
+        <button onClick={() => navigate("Prioridades")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--warning-button)] px-5 font-bold text-[var(--warning-ink)]">Ver itens prioritários <Icon name="chevron" size={16} /></button>
+      </section>}
+
+      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Alimentos cadastrados" value={String(foodCount)} suffix="itens" icon="box" footer={`${stockCount} registros no estoque`} />
+        <StatCard label="Vencem em até 3 dias" value={String(expiringSoonCount)} suffix="registros de estoque" badge={expiringSoonCount ? "Atenção" : undefined} warning={expiringSoonCount > 0} footer="Calculado pelas datas de validade" />
+        <StatCard label="Validades vencidas" value={String(expiredCount)} suffix="registros de estoque" badge={expiredCount ? "Verificar" : undefined} danger={expiredCount > 0} footer="A API não oferece baixa automática" />
+        <StatCard label="Desperdícios no mês" value={String(wasteThisMonth)} suffix="registros" icon="trash" footer="Custo não disponível na API" />
+      </section>
+
+      <section className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(310px,0.96fr)]">
+        <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow)]">
+          <div className="flex flex-col gap-5 border-b border-[var(--line)] p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-bold leading-tight">Estoques com validade próxima</h2>
+              <p className="mt-1 text-sm text-[var(--muted-strong)]">{foodsExpiringToday.length} registros vencidos ou com vencimento em até 3 dias.</p>
+            </div>
+            <span className="w-fit rounded-full bg-[var(--danger-soft)] px-3 py-1.5 text-xs font-bold text-[var(--danger)]">Ação imediata</span>
+          </div>
+          <div>
+            {foodsExpiringToday.map((food) => (
+              <article key={food.name} className="grid gap-4 border-b border-[var(--line)] p-5 last:border-b-0 sm:grid-cols-[60px_minmax(0,1fr)] lg:grid-cols-[60px_minmax(0,1fr)_165px] lg:items-center">
+                <div className={`grid h-[60px] place-items-center rounded-xl border text-xs font-bold ${food.categoryClass}`}>{food.category}</div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold">{food.name}</h3>
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${food.critical ? "border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger)]" : "border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-ink)]"}`}>{food.critical && "• "}{food.expiry}</span>
+                  </div>
+                  <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--muted-strong)]"><span>{food.location}</span><span className="text-[var(--line-strong)]">•</span><span>{food.amount}</span></p>
+                </div>
+                <div className="flex flex-row items-center gap-3 sm:col-start-2 lg:col-start-auto lg:flex-col lg:items-stretch">
+                  <button onClick={() => onRegisterWaste(food.id)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-3 text-sm font-bold text-white">Registrar baixa</button>
+                </div>
+              </article>
+            ))}
+            {foodsExpiringToday.length === 0 && <div className="p-12 text-center"><p className="font-semibold">Nenhum alimento encontrado</p><p className="mt-1 text-sm text-[var(--muted)]">Tente alterar o texto pesquisado.</p></div>}
+          </div>
+          <div className="flex flex-col gap-3 bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)] sm:flex-row sm:items-center sm:justify-between">
+            <span>Lista de estoques vencidos ou com vencimento em até 3 dias.</span>
+            <button onClick={() => navigate("Prioridades")} className="flex min-h-10 items-center gap-1 font-bold text-[var(--brand-dark)]">Ver próximas validades <Icon name="chevron" size={16} /></button>
+          </div>
+        </div>
+
+        <aside className="space-y-5">
+          <Panel>
+            <div className="flex items-center justify-between"><h2 className="panel-title">Resumo do Estoque</h2><strong className="text-sm">{stockCount} registros</strong></div>
+            <p className="mt-4 text-sm text-[var(--muted-strong)]">{foodCount} alimentos em {categoryCount} categorias.</p>
+            <p className="mt-3 text-sm text-[var(--muted-strong)]">{stocksWithoutValidity} registros sem validade informada.</p>
+          </Panel>
+
+          <Panel>
+            <div className="flex items-center justify-between"><h2 className="panel-title">Desperdícios</h2><span className="text-xs text-[var(--muted)]">Este mês</span></div>
+            <p className="mt-5 text-3xl font-bold">{wasteThisMonth}</p>
+            <p className="mt-1 text-sm text-[var(--muted-strong)]">registros; custo e baixa automática não são oferecidos pela API.</p>
+          </Panel>
+        </aside>
+      </section>
+    </>
+  );
+}
+
+function StatCard({ label, value, suffix, icon, badge, footer, warning, danger }: { label: string; value: string; suffix: string; icon?: IconName; badge?: string; footer: ReactNode; warning?: boolean; danger?: boolean }) {
+  return (
+    <div className={`min-h-[158px] rounded-2xl border bg-white p-5 shadow-[var(--shadow)] ${warning ? "border-[var(--warning-border)]" : danger ? "border-[var(--danger-border)]" : "border-[var(--line)]"}`}>
+      <div className="flex min-h-9 items-start justify-between gap-2"><p className="text-sm font-medium leading-snug text-[var(--muted-strong)]">{label}</p>{icon && <Icon name={icon} size={18} className="text-[var(--icon)]" />}{badge && <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${danger ? "border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger)]" : "border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-ink)]"}`}>{badge}</span>}</div>
+      <p className={`mt-1 text-3xl font-bold tracking-tight ${danger ? "text-[var(--danger)]" : warning ? "text-[var(--warning-strong)]" : ""}`}>{value} <span className="text-sm font-normal text-[var(--muted-strong)]">{suffix}</span></p>
+      <p className={`mt-3 text-xs font-medium ${danger ? "text-[var(--danger)]" : "text-[var(--brand)]"}`}>{footer}</p>
+    </div>
+  );
+}
+
+function Panel({ children }: { children: ReactNode }) {
+  return <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)]">{children}</div>;
+}
