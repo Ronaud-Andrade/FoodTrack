@@ -20,3 +20,6 @@ dist/
 
 # Rascunho local
 src_atualizado/
+
+# Editor
+.cursor/
