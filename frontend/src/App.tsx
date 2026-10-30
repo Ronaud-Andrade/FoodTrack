@@ -12,7 +12,7 @@ import {
   localDateOffset,
   localDateString,
   MOTIVOS_DESPERDICIO,
-  PERFIS,
+  ROTULOS_PERFIL,
   rotuloDe,
   updateStock,
   type FoodItem,
@@ -370,7 +370,7 @@ export default function App() {
           </div>
           <button onClick={logout} className="flex min-h-11 items-center gap-3 text-left" aria-label="Sair da conta">
             <span className="grid size-10 place-items-center rounded-full border border-[var(--line)] bg-slate-100 text-xs font-bold">{user.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
-            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{rotuloDe(PERFIS, user.perfil)} · Sair</span></span>
+            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{rotuloDe(ROTULOS_PERFIL, user.perfil)} · Sair</span></span>
           </button>
           </div>
         </header>

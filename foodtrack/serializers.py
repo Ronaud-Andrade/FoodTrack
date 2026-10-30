@@ -66,12 +66,14 @@ class UsuarioSerializer(serializers.ModelSerializer):
         if usuario_comum(user):
             attrs['restaurante'] = user.restaurante
             attrs['is_superuser'] = False
+            self.conferir_perfil(attrs, is_superuser=False)
             return attrs
 
         is_superuser = attrs.get(
             'is_superuser',
             self.instance.is_superuser if self.instance else False,
         )
+        self.conferir_perfil(attrs, is_superuser)
         if 'restaurante' in attrs:
             restaurante = attrs['restaurante']
         elif self.instance is not None:
@@ -85,7 +87,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             })
 
         if self.instance is not None and self.instance.pk and restaurante is not None:
-            conflito = self.instance.desperdicio.exclude(
+            conflito = self.instance.desperdicios.exclude(
                 estoque__alimento__restaurante=restaurante
             ).exists()
             if conflito:
@@ -93,6 +95,21 @@ class UsuarioSerializer(serializers.ModelSerializer):
                     'restaurante': 'Este usuário já registrou desperdício em outro restaurante e não pode ser movido.',
                 })
         return attrs
+
+    def conferir_perfil(self, attrs, is_superuser):
+        if is_superuser:
+            attrs['perfil'] = Usuario.Perfil.SUPERUSER
+            return
+        if 'perfil' in attrs:
+            perfil = attrs['perfil']
+        elif self.instance is not None:
+            perfil = self.instance.perfil
+        else:
+            perfil = None
+        if perfil == Usuario.Perfil.SUPERUSER:
+            raise serializers.ValidationError({
+                'perfil': 'O perfil de administrador do site é exclusivo do superusuário.',
+            })
 
     def create(self, validated_data):
         senha = validated_data.pop('password')

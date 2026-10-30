@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { mascararCnpj, PERFIS, rotuloDe } from "../api";
+import { mascararCnpj, PERFIS, ROTULOS_PERFIL, rotuloDe } from "../api";
 import type { PageProps } from "./types";
 import { Field, Modal, PageHeader, PrimaryButton, SecondaryButton, SettingsHeading } from "./ui";
 
@@ -59,7 +59,7 @@ export default function SettingsPage({ notify, user, users, restaurants, saveUse
         <aside className="h-fit rounded-2xl border border-[var(--line)] bg-white p-2 shadow-[var(--shadow)]">
           <p className="px-3 pb-2 pt-3 text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Dados da conta</p>
           {tabs.map(([item, description]) => <button key={item} onClick={() => setTab(item)} className={`mb-1 min-h-[62px] w-full rounded-xl px-3 text-left transition ${tab === item ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "text-[var(--muted-strong)] hover:bg-[var(--surface-soft)]"}`}><strong className="block text-sm">{item}</strong><span className="mt-0.5 block text-xs font-normal text-[var(--muted)]">{description}</span></button>)}
-          <div className="mx-2 mt-3 border-t border-[var(--line)] px-1 py-4"><strong className="block text-sm">{user.nome}</strong><span className="text-xs text-[var(--muted)]">{rotuloDe(PERFIS, user.perfil)}</span></div>
+          <div className="mx-2 mt-3 border-t border-[var(--line)] px-1 py-4"><strong className="block text-sm">{user.nome}</strong><span className="text-xs text-[var(--muted)]">{rotuloDe(ROTULOS_PERFIL, user.perfil)}</span></div>
         </aside>
 
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)] sm:p-7">
@@ -77,7 +77,7 @@ export default function SettingsPage({ notify, user, users, restaurants, saveUse
           </>}
           {tab === "Equipe" && <>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><SettingsHeading title="Usuários" description={`${users.length} contas retornadas pela API.`} /><PrimaryButton onClick={() => { setError(""); setMemberModal(true); }} icon="plus">Criar usuário</PrimaryButton></div>
-            <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{rotuloDe(PERFIS, member.perfil)}</span></div>)}</div>
+            <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{rotuloDe(ROTULOS_PERFIL, member.perfil)}</span></div>)}</div>
             <p className="mt-5 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">A API permite criar contas, mas não oferece convites por e-mail nem edição/exclusão de usuários pelo fluxo desta tela.</p>
           </>}
           {error && <p role="alert" className="mt-5 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{error}</p>}

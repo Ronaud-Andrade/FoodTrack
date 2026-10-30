@@ -29,7 +29,6 @@ class CrudEscopoTests(APITestCase):
             email='root@foodtrack.test',
             password='senha-forte-123',
             nome='Root',
-            perfil='proprietario',
         )
         self.alimento_casa = Alimento.objects.create(
             nome='Arroz',
@@ -171,6 +170,8 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(resposta.status_code, 201)
         novo = Usuario.objects.get(username='novo-root')
         self.assertTrue(novo.is_superuser)
+        self.assertEqual(novo.perfil, Usuario.Perfil.SUPERUSER)
+        self.assertEqual(resposta.data['perfil'], 'superuser')
         self.assertIsNone(novo.restaurante)
 
     def test_usuario_comum_nao_gerencia_restaurante(self):
@@ -237,6 +238,17 @@ class CrudEscopoTests(APITestCase):
         }, format='json')
         self.assertEqual(perfil.status_code, 400)
         self.assertIn('perfil', perfil.data)
+
+        administrador = self.client.post(reverse('api-usuario-list'), {
+            'username': 'admin-falso',
+            'nome': 'Admin Falso',
+            'email': 'falso@foodtrack.test',
+            'perfil': 'superuser',
+            'password': 'senha-forte-123',
+            'restaurante': self.casa.pk,
+        }, format='json')
+        self.assertEqual(administrador.status_code, 400)
+        self.assertIn('perfil', administrador.data)
 
     def test_token_autentica_a_requisicao(self):
         resposta = self.client.post(reverse('api-token'), {

@@ -15,11 +15,18 @@ export type Restaurant = {
   dias_alerta_validade: number;
 };
 
+export const PERFIL_ADMINISTRADOR = {
+  value: "superuser",
+  label: "Administrador do site",
+} as const;
+
 export const PERFIS = [
   { value: "proprietario", label: "Proprietário" },
   { value: "gerente", label: "Gerente" },
   { value: "funcionario", label: "Funcionário" },
 ] as const;
+
+export const ROTULOS_PERFIL = [PERFIL_ADMINISTRADOR, ...PERFIS] as const;
 
 export const MOTIVOS_DESPERDICIO = [
   { value: "vencimento", label: "Vencimento" },

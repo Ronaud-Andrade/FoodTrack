@@ -53,6 +53,7 @@ class Restaurante(models.Model):
 
 class Usuario(AbstractUser):
     class Perfil(models.TextChoices):
+        SUPERUSER = 'superuser', 'Administrador do site'
         PROPRIETARIO = 'proprietario', 'Proprietário'
         GERENTE = 'gerente', 'Gerente'
         FUNCIONARIO = 'funcionario', 'Funcionário'
@@ -62,6 +63,10 @@ class Usuario(AbstractUser):
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     perfil = models.CharField(max_length=20, choices=Perfil.choices)
+
+    # createsuperuser só pergunta os campos desta lista, além de username e senha.
+    # O perfil do superusuário é definido no save(); nome não tem valor padrão.
+    REQUIRED_FIELDS = ['email', 'nome']
     # O usuário nativo do Django guarda a senha com hash e já traz segurança básica.
 
     # null=True e blank=True são usados para permitir que o superusuário seja criado sem restaurante.
@@ -88,9 +93,18 @@ class Usuario(AbstractUser):
                 violation_error_message='Usuários que não são superusuários precisam estar atrelados a um restaurante.',
             ),
             models.CheckConstraint(
-                condition=models.Q(perfil__in=['proprietario', 'gerente', 'funcionario']),
+                condition=(
+                    models.Q(is_superuser=True, perfil='superuser')
+                    | models.Q(
+                        is_superuser=False,
+                        perfil__in=['proprietario', 'gerente', 'funcionario'],
+                    )
+                ),
                 name='usuario_perfil_conhecido',
-                violation_error_message='O perfil precisa ser proprietário, gerente ou funcionário.',
+                violation_error_message=(
+                    'O superusuário precisa ter o perfil de administrador do site. '
+                    'Os demais usuários precisam ser proprietário, gerente ou funcionário.'
+                ),
             ),
         ]
 
@@ -98,7 +112,14 @@ class Usuario(AbstractUser):
         # Este método é chamado por formulários e pelo admin antes de salvar.
         # Ele garante que regras de negócio sejam validadas antes do registro.
         super().clean()
+        self.ajustar_perfil()
         self.validar_restaurante()
+        self.validar_perfil()
+
+    def ajustar_perfil(self):
+        # Superusuário não usa perfil de restaurante.
+        if self.is_superuser:
+            self.perfil = self.Perfil.SUPERUSER
 
     def validar_restaurante(self):
         # Superusuário pode existir sem restaurante.
@@ -108,10 +129,25 @@ class Usuario(AbstractUser):
                 'restaurante': 'Usuários que não são superusuários precisam estar atrelados a um restaurante.',
             })
 
+    def validar_perfil(self):
+        if self.is_superuser:
+            return
+        if self.perfil in (
+            self.Perfil.PROPRIETARIO,
+            self.Perfil.GERENTE,
+            self.Perfil.FUNCIONARIO,
+        ):
+            return
+        raise ValidationError({
+            'perfil': 'O perfil precisa ser proprietário, gerente ou funcionário.',
+        })
+
     def save(self, *args, **kwargs):
         # create_superuser e alguns fluxos de criação podem ignorar o método clean().
         # Então a validação também acontece aqui para evitar inconsistência no banco.
+        self.ajustar_perfil()
         self.validar_restaurante()
+        self.validar_perfil()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -190,14 +226,14 @@ class Desperdicio(models.Model):
     estoque = models.ForeignKey(
         Estoque,
         on_delete=models.CASCADE,
-        related_name='desperdicio'
+        related_name='desperdicios'
     )
 
     # Também registra quem fez o registro, para auditoria e controle.
     usuario = models.ForeignKey(
         Usuario,
         on_delete=models.CASCADE,
-        related_name='desperdicio'
+        related_name='desperdicios'
     )
 
     class Meta:
